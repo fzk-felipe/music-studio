@@ -95,15 +95,5 @@
   "bottomShade": {
     "strength": 0.55,
     "height": 370
-  },
-  "overlay": {
-    "image": "overlay.png",
-    "enabled": false,
-    "width": 560,
-    "x": 60,
-    "y": 60,
-    "first": 60,
-    "every": 900,
-    "duration": 8
   }
 }
