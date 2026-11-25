@@ -1,0 +1,2243 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music Studio</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root {
+    --bg: #14110f; --panel: #1d1916; --panel2: #25201c; --line: #3a322b; --text: #f3ebe1; --muted: #a8998a;
+    --accent: #f0c88a; --accent2: #e3a95c; --ok: #8fcf9a; --warn: #f2b56b; --err: #ef8a7a; --r: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 1px solid var(--line); background: var(--panel2); border-radius: 9px; padding: 8px 14px; }
+  button:hover:not(:disabled) { border-color: var(--accent2); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: #2a1d0e; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: #f5d6a4; }
+  button.ghost { background: transparent; }
+  button.small { padding: 4px 10px; font-size: 12.5px; }
+  input[type=text], input[type=url], input[type=number], select, textarea {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent2); }
+  textarea { resize: vertical; min-height: 90px; font-size: 13px; }
+  label { color: var(--muted); font-size: 12.5px; }
+  .app { display: grid; grid-template-columns: 250px 1fr; height: 100vh; }
+  aside { border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  .brand { padding: 18px 18px 10px; font-weight: 700; font-size: 17px; letter-spacing: .3px; }
+  .brand span { color: var(--accent); }
+  .new { margin: 4px 14px 12px; }
+  .plist { overflow: auto; padding: 0 8px 12px; flex: 1; }
+  .pitem { padding: 9px 10px; border-radius: 9px; cursor: pointer; margin-bottom: 2px; border: 1px solid transparent; }
+  .pitem:hover { background: var(--panel2); }
+  .pitem.sel { background: var(--panel2); border-color: var(--line); }
+  .pitem .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pitem .m { color: var(--muted); font-size: 12px; }
+  .badge { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: #2f3a2f; color: var(--ok); margin-left: 4px; }
+  main { overflow: auto; min-width: 0; }
+  .empty { display: grid; place-items: center; height: 100%; color: var(--muted); text-align: center; }
+  .top { display: flex; gap: 10px; align-items: end; padding: 16px 20px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  .top .grow { flex: 1; }
+  .saved { color: var(--muted); font-size: 12px; min-width: 70px; text-align: right; padding-bottom: 8px; }
+  .body { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 18px; padding: 18px 20px 40px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; }
+  .stage { position: relative; aspect-ratio: 16/9; border-radius: var(--r); overflow: hidden; background: #000; border: 1px solid var(--line); }
+  .stage:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; border: 0; border-radius: 0; }
+  .stage:fullscreen video, .stage:fullscreen img, .stage:fullscreen canvas { object-fit: contain; }
+  .stage .expand { position: absolute; z-index: 4; top: 12px; right: 12px; padding: 6px 9px; background: #111b; color: #fff; }
+  .stage video, .stage img, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .stage .nobg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 8px 2px 0; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .row.wrap { flex-wrap: wrap; }
+  .col { display: flex; flex-direction: column; gap: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; background: var(--bg); padding: 4px; border-radius: 10px; }
+  .tabs button { flex: 1; border: none; background: transparent; padding: 7px 4px; color: var(--muted); }
+  .tabs button.on { background: var(--panel2); color: var(--text); }
+  .tabs button .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-left: 5px; vertical-align: middle; }
+  .drop { border: 1.5px dashed var(--line); border-radius: 10px; padding: 18px; text-align: center; color: var(--muted); cursor: pointer; transition: .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent2); color: var(--text); background: #2a231d; }
+  .tracks { margin-top: 10px; max-height: 430px; overflow: auto; }
+  .trk { display: grid; grid-template-columns: 18px 26px 26px 1fr auto 24px; gap: 6px; align-items: center; padding: 4px 4px; border-radius: 7px; }
+  .trk:hover { background: var(--panel2); }
+  .trk.dragging { opacity: .4; }
+  .trk.over { box-shadow: inset 0 2px 0 var(--accent); }
+  .trk .h { cursor: grab; color: var(--muted); text-align: center; user-select: none; }
+  .trk .n { color: var(--muted); font-size: 12px; text-align: right; }
+  .trk input { border-color: transparent; background: transparent; padding: 4px 6px; }
+  .trk input:hover { border-color: var(--line); cursor: text; }
+  .trk input:focus { border-color: var(--accent2); background: var(--bg); }
+  .tracks.busy { opacity: .5; pointer-events: none; }
+  .toast { display: flex; align-items: center; }
+  .trk .d { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .plhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 4px 4px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  .plhead:first-child { margin-top: 0; }
+  .plhead span.rename { cursor: pointer; }
+  .plhead span.rename:hover { text-decoration: underline; }
+  .intro-frame { aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; display: grid; place-items: center; margin: 10px 0 4px;
+    background: repeating-conic-gradient(#3a3a3a 0 25%, #262626 0 50%) 0 0/20px 20px; border: 1px solid var(--line); }
+  .intro-frame img { max-width: 100%; max-height: 100%; display: block; }
+  .pick { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--bg); }
+  .pick .list { max-height: 260px; overflow: auto; margin: 6px 0; }
+  .pick label.song { display: grid; grid-template-columns: 20px 1fr auto; gap: 6px; align-items: center; padding: 3px 2px; color: var(--text); font-size: 13px; cursor: pointer; }
+  .pick label.song span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pick label.song small { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .plhead span { color: var(--accent2); font-size: 12.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plhead small { color: var(--muted); font-weight: 400; }
+  .icon { border: none; background: transparent; padding: 2px; color: var(--muted); border-radius: 6px; }
+  .icon:hover { color: var(--text); background: var(--line); }
+  .icon.playing { color: var(--accent); }
+  .meter { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+  .meter > div { height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+  .meter.warn > div { background: var(--warn); }
+  .styles { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 6px; }
+  .style-group { margin: 12px 0 16px; }
+  .style-group h5 { margin: 0 0 7px; color: var(--accent2); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .style-group .styles { margin: 0; }
+  .styles button { padding: 8px 2px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; }
+  .styles button.on { border-color: var(--accent); background: #2f261d; }
+  .styles svg { width: 54px; height: 28px; }
+  .visual-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 8px; margin-top: 10px; }
+  .visual-item { min-width: 0; padding: 5px; text-align: left; }
+  .visual-item.on { border-color: var(--accent); }
+  .visual-item img, .visual-item .video-ph { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 5px; background: #171717; }
+  .visual-item .video-ph { display: grid; place-items: center; font-size: 25px; }
+  .visual-item span { display: block; margin-top: 5px; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sl { display: grid; grid-template-columns: 92px 1fr 46px; gap: 8px; align-items: center; margin: 6px 0; }
+  .sl output { color: var(--muted); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent2); }
+  input[type=color] { width: 44px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 2px; }
+  .switch { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); font-size: 14px; }
+  .switch input { width: 34px; height: 18px; appearance: none; background: var(--line); border-radius: 99px; position: relative; cursor: pointer; transition: .15s; margin: 0; }
+  .switch input::after { content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: .15s; }
+  .switch input:checked { background: var(--accent2); }
+  .switch input:checked::after { left: 18px; }
+  .section { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+  .section:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+  .section h4 { margin: 0 0 8px; font-size: 13.5px; }
+  .sub { padding-left: 4px; display: grid; gap: 8px; margin-top: 8px; }
+  .render { margin-top: 14px; }
+  .render .btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .progress { margin-top: 12px; }
+  .progress .bar { height: 10px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+  .progress .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); width: 0; transition: width .5s; }
+  .progress .bar.indet > div { width: 30% !important; animation: indet 1.4s infinite ease-in-out; }
+  @keyframes indet { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
+  .progress .info { display: flex; justify-content: space-between; color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+  details.log summary { cursor: pointer; color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+  details.log pre { background: var(--bg); border-radius: 8px; padding: 10px; max-height: 220px; overflow: auto; font-size: 12px; white-space: pre-wrap; margin: 6px 0 0; }
+  .result { margin-top: 14px; }
+  .result video { width: 100%; border-radius: 10px; background: #000; }
+  .copyrow { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 4px; }
+  .err { color: var(--err); white-space: pre-wrap; font-size: 13px; }
+  .okc { color: var(--ok); }
+  .modal { position: fixed; inset: 0; background: #0009; display: grid; place-items: center; z-index: 20; }
+  .modal .card { width: min(460px, 92vw); display: grid; gap: 12px; max-height: 92vh; overflow: auto; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line); padding: 9px 16px; border-radius: 10px; z-index: 30; }
+  .toast.e { border-color: var(--err); color: var(--err); }
+  .muted { color: var(--muted); }
+  .hidden { display: none !important; }
+  .chsec { border-top: 1px solid var(--line); padding: 10px 8px 12px; max-height: 40vh; overflow: auto; }
+  .chhead { display: flex; justify-content: space-between; align-items: center; padding: 0 6px 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+  .citem { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+  .citem:hover { background: var(--panel2); }
+  .citem .m { color: var(--muted); font-size: 12px; }
+  .pfilter { padding: 0 14px 8px; }
+  .qsec { border-top: 1px solid var(--line); padding: 10px 14px; font-size: 12.5px; max-height: 32vh; overflow: auto; }
+  .qsec .qh { display: flex; justify-content: space-between; align-items: center; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; font-size: 12px; margin-bottom: 6px; }
+  .qitem { display: grid; grid-template-columns: 1fr auto; gap: 4px; align-items: center; padding: 4px 0; }
+  .qitem .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .qitem .m { color: var(--muted); font-size: 11.5px; }
+  .qbar { height: 4px; background: var(--bg); border-radius: 9px; overflow: hidden; grid-column: 1 / -1; }
+  .qbar > div { height: 100%; background: var(--accent); }
+  .fontrow { display: grid; grid-template-columns: 1fr 64px 40px; gap: 6px; align-items: center; background: var(--bg); padding: 6px; border-radius: 8px; }
+  .fontrow select { padding: 5px 8px; }
+  .fontrow input[type=number] { padding: 5px 6px; }
+  .fontrow input[type=color] { width: 40px; height: 30px; }
+  .pub h3 { margin: 0 0 10px; font-size: 15px; }
+  .pub .grid { display: grid; gap: 10px; }
+  .pub .thumb { display: grid; grid-template-columns: 200px 1fr; gap: 12px; align-items: center; }
+  .pub .thumb img { width: 200px; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); }
+  .pub .thumb .ph { width: 200px; aspect-ratio: 16/9; border-radius: 8px; border: 1.5px dashed var(--line); display: grid; place-items: center; color: var(--muted); font-size: 12px; text-align: center; cursor: pointer; }
+  .pub .ytch { display: flex; align-items: center; gap: 8px; }
+  .pub .ytch img { width: 26px; height: 26px; border-radius: 50%; }
+  .pub ol { margin: 6px 0 10px; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .pub ol b { color: var(--text); }
+  .pub a { color: var(--accent); }
+  @media (max-width: 1100px) { .body { grid-template-columns: 1fr; } }
+  /* The settings panel scrolls on its own, so the preview stays in view while adjusting. */
+  @media (min-width: 1101px) {
+    .body > .card { position: sticky; top: 106px; max-height: calc(100vh - 124px); overflow: auto; padding-top: 0; }
+    .body > .card > .tabs { position: sticky; top: 0; z-index: 3; margin: 0 -14px 12px; padding: 14px 18px 4px; border-radius: 0; background: var(--panel); }
+    .body > .card > .tabs::after { content: ""; position: absolute; left: 18px; right: 18px; top: 14px; bottom: 0; background: var(--bg); border-radius: 10px; z-index: -1; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">Music <span>Studio</span></div>
+    <button class="primary new" id="btnNew">+ Novo vídeo</button>
+    <div class="pfilter"><select id="pFilter"><option value="">Todos os canais</option></select></div>
+    <div class="plist" id="plist"></div>
+    <div class="qsec hidden" id="qsec"></div>
+    <div class="chsec">
+      <div class="chhead"><span>Canais</span><button class="small ghost" id="btnRefreshCh" title="Ler novamente a pasta channels">↻</button><button class="small ghost" id="btnNewCh">+ Novo canal</button></div>
+      <div id="clist"></div>
+    </div>
+  </aside>
+  <main id="main"><div class="empty"><div><p style="font-size:16px">Crie um vídeo novo ou escolha um projeto ao lado.</p></div></div></main>
+</div>
+
+<template id="tplProject">
+  <div class="top">
+    <div class="col grow"><label>Título do vídeo no YouTube</label><input type="text" id="fTitle" placeholder="Rainy Day Piano 🌧️ Soft Piano Music for…"></div>
+    <div class="col" style="width:200px"><label>Canal</label><select id="fChannel"></select></div>
+    <div class="saved" id="saved"></div>
+  </div>
+  <div class="body">
+    <div>
+      <div class="stage" id="stage">
+        <video id="bgVideo" muted loop playsinline class="hidden"></video>
+        <img id="bgImage" class="hidden" alt="">
+        <div class="nobg" id="noBg">Escolha um fundo na aba <b>&nbsp;Fundo&nbsp;</b> →</div>
+        <canvas id="cv" width="1920" height="1080"></canvas>
+        <button class="expand" id="stageExpand" title="Expandir a prévia para a tela inteira">⛶ Tela inteira</button>
+      </div>
+      <p class="hint" id="stageHint">Prévia ao vivo. Toque uma música (▶ na aba Músicas) para ver o visualizer reagir. O vídeo final fica igual.</p>
+      <div class="card" style="margin-top:10px"><div class="row"><label style="white-space:nowrap">Linha do tempo</label><input type="range" id="timeline" min="0" max="1" value="0" step="1" style="flex:1"><span id="timelineText" class="muted" style="min-width:65px;text-align:right">0:00</span><button class="small ghost" id="timelineLive">Ao vivo</button></div><div class="row" style="justify-content:space-between"><span class="hint" id="timelineTrack" style="margin:0">Escolha um ponto para ver a faixa e os avisos.</span><label class="switch" style="font-size:12px"><input type="checkbox" id="safeGuides"> Guias 5%</label></div></div>
+
+      <div class="card render">
+        <div class="btns">
+          <button id="btnPreview">Gerar prévia de 20 s</button>
+          <label>a partir de</label><input type="text" id="fPrevStart" value="1:00" style="width:64px">
+          <span style="flex:1"></span>
+          <button class="primary" id="btnBuild">Gerar vídeo completo</button>
+        </div>
+        <div class="row" style="margin-top:10px; gap:8px">
+          <label>Resolução</label>
+          <select data-k="video.resolution" style="width:auto">
+            <option value="1080p">1080p (Full HD) — ~3,5 GB por hora de vídeo</option>
+            <option value="1440p">1440p (2K) — ~6 GB por hora</option>
+            <option value="4k">4K — ~10 GB por hora</option>
+          </select>
+        </div>
+        <label class="switch" style="margin-top:10px"><input type="checkbox" data-k="cleanMetadata"> Gerar MP4 sem metadados de origem e sem capítulos embutidos</label>
+        <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--muted)">Comparar dois visuais A/B</summary><p class="hint">Ajuste o visual, guarde A; mude os ajustes e guarde B. Depois gere duas prévias de 20 s sem substituir o vídeo final.</p><div class="row wrap"><button class="small" id="captureA">Guardar A</button><button class="small" id="captureB">Guardar B</button><button class="small primary" id="btnCompare">Gerar comparação</button><span id="compareStatus" class="hint"></span></div></details>
+        <div class="row" style="margin-top:8px; justify-content: space-between">
+          <span class="hint" id="readyHint" style="margin:0"></span>
+          <button class="ghost small" id="btnOverlay" title="Só o visualizer sobre fundo preto, para usar no CapCut (modo de mesclagem Tela)">só visualizer p/ CapCut</button>
+        </div>
+        <p class="err hidden" id="glyphWarn" style="margin:8px 0 0"></p>
+        <div class="progress hidden" id="prog">
+          <div class="bar" id="progBar"><div></div></div>
+          <div class="info"><span id="progStage"></span><span id="progEta"></span></div>
+          <div class="row" style="margin-top:8px; justify-content:flex-end"><button class="small" id="btnCancel">Cancelar</button></div>
+        </div>
+        <div class="err hidden" id="jobErr"></div>
+        <details class="log hidden" id="logBox"><summary>detalhes</summary><pre id="logPre"></pre></details>
+        <div class="result" id="result"></div>
+      </div>
+      <details class="card" id="storageBox" style="margin-top:14px"><summary style="cursor:pointer">Armazenamento e limpeza</summary><div id="storageInfo" class="hint">Clique para calcular o espaço usado.</div><div class="row" style="margin-top:10px"><button class="small ghost" id="btnStorageRefresh">Atualizar</button><button class="small" id="btnStorageClean">Limpar cache, prévias e lixeira</button></div></details>
+      <div class="card" id="pubCard" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card">
+      <div class="tabs" id="tabs">
+        <button data-tab="bg">Fundo</button><button data-tab="tracks">Músicas</button><button data-tab="viz">Visualizer</button><button data-tab="text">Textos</button><button data-tab="ov">Lembrete</button><button data-tab="intro">Intro</button>
+      </div>
+
+      <div data-pane="bg">
+        <div class="drop" id="dropBg">Arraste aqui o vídeo do Google Flow<br><small>(ou clique para escolher — mp4, ou imagem png/jpg)</small></div>
+        <input type="file" id="fileBg" accept="video/*,image/*" class="hidden">
+        <p class="hint" id="bgName"></p>
+        <div class="section"><h4>Biblioteca de visuais</h4>
+          <p class="hint">Importe imagens e vídeos uma vez e use-os como fundo em qualquer projeto. Clique em um visual para aplicá-lo a este vídeo.</p>
+          <div class="drop" id="dropVisuals" style="margin-top:10px">Arraste seus visuais aqui ou clique para importar<br><small>PNG, JPG, WebP, BMP, MP4, MOV, WebM ou MKV</small></div>
+          <input type="file" id="fileVisuals" accept=".png,.jpg,.jpeg,.webp,.bmp,.mp4,.mov,.webm,.mkv,image/*,video/*" multiple class="hidden">
+          <div class="visual-grid" id="visualLibrary"></div>
+        </div>
+        <div class="section">
+          <h4>Ajustes do fundo</h4>
+          <div class="sl"><label>Escurecer</label><input type="range" min="0" max="0.6" step="0.05" data-k="backgroundDim"><output></output></div>
+          <div class="sl"><label>Sombra embaixo</label><input type="range" min="0" max="0.9" step="0.05" data-k="bottomShade.strength"><output></output></div>
+          <div class="sl"><label>Altura da sombra</label><input type="range" min="150" max="700" step="10" data-k="bottomShade.height"><output></output></div>
+          <p class="hint">A sombra embaixo ajuda o visualizer a aparecer em fundos claros. Tremor e emenda do loop são corrigidos automaticamente.</p>
+          <h4 style="margin-top:16px">Transição ao repetir o fundo</h4>
+          <div class="row"><label style="width:92px">Na repetição</label><select data-k="loopTransition" style="flex:1"><option value="cut">Corte direto</option><option value="crossfade">Dissolver uma volta na outra (vídeo)</option><option value="fade-black">Escurecer e reaparecer</option></select></div>
+          <div class="sl" data-loop-fade><label>Duração</label><input type="range" min="0.2" max="3" step="0.1" data-k="loopFade"><output data-unit="s"></output></div>
+          <div class="sl" data-image-loop><label>Imagem repete a cada</label><input type="range" min="5" max="120" step="5" data-k="imageLoopSeconds"><output data-unit="s"></output></div>
+          <p class="hint">Em imagem parada, dissolver a mesma foto não cria movimento; escolha “Escurecer e reaparecer” para uma transição visível. Gere uma prévia de 20 s para conferir o resultado exportado.</p>
+          <div class="row" style="margin-top:12px"><label style="width:92px">Entrada inicial</label><select data-k="backgroundAnim" style="flex:1"><option value="none">Sem efeito</option><option value="fade">Aparecer suave</option></select></div>
+        </div>
+      </div>
+
+      <div data-pane="tracks">
+        <div class="col"><label>Importar do Flow Music: link de uma playlist ou de músicas (uma por linha)</label>
+          <div class="row" style="align-items:stretch"><textarea id="fFlow" rows="2" style="min-height:44px" placeholder="https://www.flowmusic.app/playlist/…&#10;https://www.flowmusic.app/song/…"></textarea><button id="btnFlow">Ver músicas</button></div>
+          <div class="pick hidden" id="flowPick"></div>
+          <div class="progress hidden" id="flowStatus" style="margin-top:8px">
+            <div class="bar" id="flowBar"><div></div></div>
+            <div class="info"><span id="flowStage"></span><button class="small" id="flowCancel">Cancelar</button></div>
+          </div>
+          <p class="hint" style="margin:6px 0 0">A importação baixa as músicas mesmo enquanto outro vídeo renderiza. Pode pôr este vídeo na fila antes de terminar: ele espera as músicas chegarem.</p>
+        </div>
+        <div class="drop" id="dropTracks" style="margin-top:10px">ou arraste arquivos de áudio aqui (m4a, mp3, wav…)</div>
+        <input type="file" id="fileTracks" accept="audio/*,.m4a,.flac" multiple class="hidden">
+        <div class="section" style="margin-top:14px"><h4>Transição entre músicas</h4>
+          <div class="sl"><label>Fade entre faixas</label><input type="range" min="0" max="15" step="1" data-k="audio.crossfade"><output data-unit="s"></output></div>
+          <p class="hint">As músicas se sobrepõem suavemente por este tempo. Em 0 s, a próxima começa sem fade. A duração total e os capítulos são ajustados automaticamente.</p>
+        </div>
+        <div class="section" style="margin-top:14px"><h4>Som ambiente sob a música</h4>
+          <p class="hint">Adicione chuva, ondas ou outro áudio. Ele se repete durante o vídeo inteiro, abaixo das músicas.</p>
+          <div class="drop" id="dropAmbience">Clique ou arraste um som ambiente (mp3, wav, m4a…)</div>
+          <input type="file" id="fileAmbience" accept="audio/*,.m4a,.flac,.ogg,.opus" class="hidden">
+          <div class="row wrap" style="margin-top:8px"><span id="ambName" class="muted">Nenhum som ambiente</span><button class="small ghost" id="ambRemove">Remover</button></div>
+          <label class="switch"><input type="checkbox" data-k="audio.ambience.enabled" id="ambEnabled"> Usar som ambiente no vídeo</label>
+          <div class="sl"><label>Volume ambiente</label><input type="range" min="-40" max="0" step="1" data-k="audio.ambience.volumeDb"><output data-unit=" dB"></output></div>
+          <div class="sl"><label>Entrada suave</label><input type="range" min="0" max="30" step="1" data-k="audio.ambience.fadeIn"><output data-unit="s"></output></div>
+          <div class="sl"><label>Saída suave</label><input type="range" min="0" max="30" step="1" data-k="audio.ambience.fadeOut"><output data-unit="s"></output></div>
+          <p class="hint">0 s desliga cada fade. A entrada vale para o início do vídeo e a saída para o final; as músicas não são afetadas. O player ▶ permite conferir o volume ambiente; gere uma prévia para ouvir os fades.</p>
+        </div>
+        <div style="margin-top:12px">
+          <div class="row" style="justify-content:space-between"><b id="totalText"></b><span class="row" style="gap:8px"><span class="muted" id="totalGoal"></span><button class="small ghost" id="btnClearTracks" title="Tirar todas as músicas deste vídeo (dá para desfazer)">Remover todas</button></span></div>
+          <div class="meter" id="meter"><div></div></div>
+        </div>
+        <div class="tracks" id="tracks"></div>
+        <p class="hint">Arraste ⋮⋮ para mudar a ordem (soltar sob outra playlist move a música para ela; clique no nome da playlist para renomear). Clique no nome para renomear (é o nome que aparece no vídeo e na descrição).</p>
+        <audio id="player" class="hidden"></audio>
+        <audio id="ambPlayer" class="hidden" loop></audio>
+      </div>
+
+      <div data-pane="viz">
+        <label class="switch"><input type="checkbox" data-k="visualizer.enabled"> Mostrar audio visualizer</label>
+        <div id="vizOpts">
+          <div class="section"><h4>Estilos de visualizer <span id="styleCount" class="muted"></span></h4><input type="search" id="styleSearch" placeholder="Buscar estilo (ex.: anel, ondas, pontos)"><div id="styles"></div></div>
+          <div class="section"><h4>Cores</h4>
+            <div class="row"><input type="color" data-k="visualizer.color"><label>topo</label>
+              <label class="switch" style="margin-left:12px"><input type="checkbox" id="useColor2"> degradê</label>
+              <input type="color" data-k="visualizer.color2" id="color2"><label id="color2l">base</label></div>
+            <div class="sl"><label>Opacidade</label><input type="range" min="0.2" max="1" step="0.05" data-k="visualizer.opacity"><output></output></div>
+            <div class="sl"><label>Brilho (glow)</label><input type="range" min="0" max="24" step="1" data-k="visualizer.glow"><output></output></div>
+            <div class="sl"><label>Força do brilho</label><input type="range" min="0" max="1" step="0.05" data-k="visualizer.glowStrength"><output></output></div>
+          </div>
+          <div class="section"><h4>Tamanho e posição</h4>
+            <div class="row wrap"><button class="small" id="btnVizFill">Ocupar quadro inteiro</button><span class="hint">ou ajuste largura, altura e posição abaixo</span></div>
+            <div class="sl" data-linear><label>Largura</label><input type="range" min="300" max="1920" step="20" data-k="visualizer.width"><output></output></div>
+            <div class="sl"><label>Altura</label><input type="range" min="40" max="1080" step="5" data-k="visualizer.height"><output></output></div>
+            <div class="sl" data-linear><label>Distância da base</label><input type="range" min="0" max="1000" step="5" data-k="visualizer.bottom"><output></output></div>
+            <div class="sl" data-radial><label>Raio do anel</label><input type="range" min="60" max="400" step="5" data-k="visualizer.radius"><output></output></div>
+            <div class="sl" data-radial><label>Distância do anel</label><input type="range" min="0" max="100" step="5" data-k="visualizer.ringGap"><output></output></div>
+            <div class="sl"><label>Barras</label><input type="range" min="16" max="160" step="2" data-k="visualizer.bars"><output></output></div>
+            <div class="sl"><label>Espaço entre</label><input type="range" min="0.1" max="0.85" step="0.05" data-k="visualizer.gap"><output></output></div>
+            <div class="sl"><label>Linha fina/forte</label><input type="range" min="1" max="12" step="1" data-k="visualizer.lineWidth"><output></output></div>
+            <div class="sl"><label>Preenchimento</label><input type="range" min="0" max="1" step="0.05" data-k="visualizer.fillAlpha"><output></output></div>
+            <p class="hint">Linha: Seda, Montanhas, Agulhas, Fita, Halo e Raios. Preenchimento: Seda e Montanhas.</p>
+            <div class="row wrap" style="margin-top:6px">
+              <label class="switch"><input type="checkbox" data-k="visualizer.mirror"> espelhado (graves no meio)</label>
+              <label class="switch" data-only="capsules"><input type="checkbox" id="anchorCenter"> cresce p/ cima e p/ baixo</label>
+            </div>
+          </div>
+          <div class="section" data-radial><h4>Foto no centro do círculo</h4>
+            <div class="row wrap"><button class="small" id="btnCenterImage">+ adicionar foto</button><button class="small ghost" id="btnCenterRemove">Remover foto</button><img id="centerImageThumb" class="hidden" alt="Foto central" style="width:60px;height:60px;object-fit:cover;border-radius:50%"></div>
+            <input type="file" id="fileCenterImage" accept=".png,.jpg,.jpeg,.webp,image/*" class="hidden">
+            <div class="col" style="margin-top:8px"><label for="centerVisualSelect">Ou usar imagem da Biblioteca de visuais</label><select id="centerVisualSelect"><option value="">Escolha uma imagem…</option></select></div>
+            <div class="sl"><label>Tamanho da foto</label><input type="range" min="40" max="900" step="5" data-k="visualizer.centerImageScale"><output data-unit="%"></output></div>
+            <div class="sl"><label>Giro da foto</label><input type="range" min="0" max="30" step="1" data-k="visualizer.rotation"><output data-unit="°/s"></output></div>
+            <p class="hint">Aumente a foto até 900%. Acima de 100%, ela pode cobrir parte do visualizer; ajuste também “Raio do anel” e “Distância do anel” se quiser deixá-lo mais afastado. Ao cobrir todo o quadro, o tamanho útil é limitado para não sobrecarregar o render.</p>
+          </div>
+          <div class="section"><h4>Movimento</h4>
+            <div class="sl"><label>Subida</label><input type="range" min="0.1" max="1" step="0.05" data-k="visualizer.attack"><output></output></div>
+            <div class="sl"><label>Descida</label><input type="range" min="0.03" max="0.5" step="0.01" data-k="visualizer.release"><output></output></div>
+            <div class="sl"><label>Realce agudos</label><input type="range" min="0" max="1.5" step="0.05" data-k="visualizer.tilt"><output></output></div>
+            <div class="row"><label style="width:92px">Entrada</label><select data-k="visualizer.anim" style="flex:1"><option value="none">Sem efeito</option><option value="fade">Aparecer suave</option><option value="slide-left">Da esquerda</option><option value="slide-right">Da direita</option><option value="rise">Subir</option></select><button class="small ghost" id="vizPlayAnim">▶ ver</button></div>
+            <div class="sl"><label>Duração entrada</label><input type="range" min="0.3" max="3" step="0.1" data-k="visualizer.animDuration"><output data-unit="s"></output></div>
+          </div>
+          <div class="section row" style="justify-content:space-between">
+            <span class="hint" style="margin:0">Gostou? Use este visual nos próximos vídeos do canal.</span>
+            <button class="small" id="btnChannelLook">Salvar como padrão do canal</button>
+          </div>
+        </div>
+      </div>
+
+      <div data-pane="text">
+        <div class="section" style="margin:0 0 12px;padding:0;border:0"><b>Modelos de visual do canal</b><div class="row" style="margin-top:6px"><select id="presetSelect" style="flex:1"><option value="">Escolha um modelo…</option></select><button class="small" id="presetApply">Aplicar</button><button class="small ghost" id="presetSave">Salvar atual</button></div><p class="hint">Guarda cores, textos, posições, CTA, visualizer e vídeo; não troca as músicas ou o fundo.</p></div>
+        <details class="section" style="margin:0 0 12px"><summary style="cursor:pointer;font-weight:600;margin-bottom:10px">Fontes: importar, buscar e testar</summary>
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          <span class="hint" style="margin:0">Fonte, tamanho e cor de cada texto.</span>
+          <button class="small" id="btnRefreshFonts" title="Buscar fontes instaladas recentemente no Windows">Atualizar fontes</button>
+        </div>
+        <div class="row wrap" style="margin-bottom:10px">
+          <button class="small" id="btnAddFont" title="Escolha arquivos .ttf ou .otf de qualquer pasta do computador">+ importar fontes do computador</button>
+          <label for="fontTarget">Aplicar em</label>
+          <select id="fontTarget"><option value="text.trackProgress">Nome + progresso</option><option value="text.title">Título inicial</option><option value="text.title.subtitle">Subtítulo</option><option value="text.nowPlaying">Nome da música</option><option value="text.nowPlaying.label">Legenda da música</option><option value="text.cta">Texto de Aviso</option><option value="text.watermark">Marca do canal</option><option value="">Só adicionar à lista</option></select>
+          <input type="file" id="fileFont" accept=".ttf,.otf,font/ttf,font/otf" multiple class="hidden">
+        </div>
+        <p class="hint" style="margin-top:-4px">Escolha arquivos .ttf ou .otf de qualquer pasta. Fontes instaladas no Windows aparecem abaixo; clique em Atualizar fontes após instalar uma nova.</p>
+        <div class="section"><h4>Fontes do sistema e importadas <span id="systemFontCount" class="muted"></span></h4>
+          <input type="search" id="systemFontSearch" placeholder="Buscar fonte pelo nome (ex.: Arial, Georgia, Minecraft)">
+          <div class="row" style="margin-top:7px"><select id="systemFontSelect" style="flex:1"></select><button class="small" id="btnUseSystemFont">Usar no texto escolhido</button></div>
+          <p id="systemFontPreview" style="font-size:26px;margin:10px 2px 0">Exemplo de fonte · Aa Bb 123</p>
+        </div>
+        </details>
+        <div class="section">
+          <label class="switch"><input type="checkbox" data-k="text.title.enabled"> Título no começo do vídeo</label>
+          <div class="sub" data-if="text.title.enabled">
+            <div class="col"><label>Título</label><input type="text" data-k="text.title.text"></div>
+            <div class="fontrow" data-font="text.title" data-min="20" data-max="120"></div>
+            <div class="col"><label>Subtítulo</label><input type="text" data-k="text.title.subtitle.text"></div>
+            <div class="fontrow" data-font="text.title.subtitle" data-parent="text.title" data-min="12" data-max="60"></div>
+            <div class="row"><label style="width:92px">Animação</label><select data-k="text.title.anim" style="flex:1"><option value="fade">Aparecer (fade)</option><option value="slide-left">Deslizar da esquerda</option><option value="slide-right">Deslizar da direita</option><option value="rise">Subir</option><option value="zoom">Zoom</option><option value="none">Sem animação</option></select><button class="small ghost playAnim" title="ver na prévia">▶ ver</button></div>
+            <div class="sl"><label>Some depois de</label><input type="range" min="5" max="120" step="5" data-k="text.title.duration"><output data-unit="s"></output></div>
+          </div>
+        </div>
+        <div class="section">
+          <label class="switch"><input type="checkbox" data-k="text.nowPlaying.enabled"> Nome da música quando começa</label>
+          <div class="sub" data-if="text.nowPlaying.enabled">
+            <div class="fontrow" data-font="text.nowPlaying" data-min="14" data-max="80" data-label="Nome da música"></div>
+            <div class="col"><label>Rótulo acima do nome</label><input type="text" data-k="text.nowPlaying.label.text" placeholder="NOW PLAYING"></div>
+            <div class="fontrow" data-font="text.nowPlaying.label" data-parent="text.nowPlaying" data-min="10" data-max="40"></div>
+            <div class="row"><label style="width:92px">Animação</label><select data-k="text.nowPlaying.anim" style="flex:1"><option value="fade">Aparecer (fade)</option><option value="slide-left">Deslizar da esquerda</option><option value="slide-right">Deslizar da direita</option><option value="rise">Subir</option><option value="zoom">Zoom</option><option value="none">Sem animação</option></select><button class="small ghost playAnim" title="ver na prévia">▶ ver</button></div>
+            <div class="sl"><label>Fica na tela</label><input type="range" min="4" max="60" step="1" data-k="text.nowPlaying.duration"><output data-unit="s"></output></div>
+          </div>
+        </div>
+        <div class="section">
+          <label class="switch"><input type="checkbox" data-k="text.trackProgress.enabled"> Nome da música + barra de progresso</label>
+          <div class="sub" data-if="text.trackProgress.enabled">
+            <p class="hint" style="margin:0">Como na referência: nome acima da linha e marcador que avança durante cada música. Arraste o conjunto na prévia para escolher a posição.</p>
+            <div class="fontrow" data-font="text.trackProgress" data-min="14" data-max="70" data-label="Nome e barra"></div>
+            <div class="sl"><label>Largura da barra</label><input type="range" min="180" max="1000" step="10" data-k="text.trackProgress.width"><output data-unit="px"></output></div>
+            <div class="row"><label>Cor da linha</label><input type="color" data-k="text.trackProgress.lineColor"><label>Cor do marcador</label><input type="color" data-k="text.trackProgress.dotColor"></div>
+            <div class="row"><label style="width:92px">Marcador</label><select data-k="text.trackProgress.dotShape" style="flex:1"><option value="circle">Bolinha</option><option value="square">Quadrado</option></select></div>
+            <div class="row"><label style="width:92px">Entrada</label><select data-k="text.trackProgress.anim" style="flex:1"><option value="none">Sem efeito</option><option value="fade">Aparecer suave</option><option value="slide-left">Da esquerda</option><option value="slide-right">Da direita</option><option value="rise">Subir</option></select><button class="small ghost playAnim">▶ ver</button></div>
+          </div>
+        </div>
+        <div class="section">
+          <label class="switch"><input type="checkbox" data-k="text.watermark.enabled"> Marca do canal (o vídeo todo)</label>
+          <div class="sub" data-if="text.watermark.enabled">
+            <div class="col"><label>Texto</label><input type="text" data-k="text.watermark.text"></div>
+            <div class="fontrow" data-font="text.watermark" data-min="12" data-max="60"></div>
+            <div class="row"><label style="width:92px">Entrada</label><select data-k="text.watermark.anim" style="flex:1"><option value="none">Sem efeito</option><option value="fade">Aparecer suave</option><option value="slide-left">Da esquerda</option><option value="slide-right">Da direita</option><option value="rise">Subir</option><option value="zoom">Zoom</option></select><button class="small ghost playAnim">▶ ver</button></div>
+          </div>
+        </div>
+        <div class="section">
+          <label class="switch"><input type="checkbox" data-k="text.cta.enabled"> Texto de Aviso</label>
+          <div class="sub" data-if="text.cta.enabled">
+            <div class="col"><label>Texto do aviso</label><input type="text" data-k="text.cta.text"></div>
+            <div class="fontrow" data-font="text.cta" data-min="14" data-max="80" data-label="Aviso"></div>
+            <div class="row"><label style="width:92px">Efeito</label><select data-k="text.cta.anim" style="flex:1"><option value="fade">Aparecer suave (fade)</option><option value="slide-left">Deslizar da esquerda</option><option value="slide-right">Deslizar da direita</option><option value="rise">Subir</option><option value="zoom">Zoom</option><option value="none">Sem animação</option></select><button class="small ghost playAnim" title="ver na prévia">▶ ver</button></div>
+            <div class="row"><label>Posição rápida</label><button class="small ghost ctaPos" data-pos="top">Em cima</button><button class="small ghost ctaPos" data-pos="center">Centro</button><button class="small ghost ctaPos" data-pos="bottom">Embaixo</button></div>
+            <div class="sl"><label>Primeira vez</label><input type="range" min="0" max="900" step="5" data-k="text.cta.first"><output data-fmt="time"></output></div>
+            <label class="switch"><input type="checkbox" data-k="text.cta.repeat"> Repetir aviso durante o vídeo</label>
+            <div class="sl" data-if="text.cta.repeat"><label>Repete a cada</label><input type="range" min="60" max="3600" step="30" data-k="text.cta.every"><output data-fmt="min"></output></div>
+            <div class="sl"><label>Fica na tela</label><input type="range" min="3" max="30" step="1" data-k="text.cta.duration"><output data-unit="s"></output></div>
+            <p class="hint" style="margin:0">Você também pode arrastar o aviso na prévia para posicioná-lo livremente.</p>
+          </div>
+        </div>
+        <p class="hint">Arraste os textos na prévia para mudar a posição (eles "grudam" no centro). Na prévia todos aparecem juntos; no vídeo, cada um no seu tempo.</p>
+        <div class="section row" style="justify-content:space-between">
+          <span class="hint" style="margin:0">Usar estas fontes e cores nos próximos vídeos do canal.</span>
+          <button class="small saveLook">Salvar como padrão do canal</button>
+        </div>
+      </div>
+
+      <div data-pane="intro">
+        <p class="hint" style="margin:0 0 10px">Intro do canal <b id="introChannel"></b>: um vídeo com fundo verde (ou azul) que toca por cima do começo de <b>todos os vídeos desse canal</b>. O fundo é removido automaticamente.</p>
+        <div class="drop" id="dropIntro">Arraste aqui o vídeo da intro com fundo verde<br><small>MP4, MOV, WebM ou MKV — ou clique para escolher</small></div>
+        <input type="file" id="fileIntro" accept="video/*,.mp4,.mov,.webm,.mkv,.m4v" class="hidden">
+        <div id="introBox" class="hidden">
+          <div class="intro-frame" title="O xadrez é o que fica transparente"><img id="introFrame" alt="Intro com o fundo removido"></div>
+          <div class="sl"><label>Ver momento</label><input type="range" id="introAt" min="0" max="99" step="1" value="50"><output data-unit="%"></output></div>
+          <div class="section">
+            <label class="switch"><input type="checkbox" data-k="intro.enabled"> Mostrar no começo do vídeo</label>
+            <div class="sub" data-if="intro.enabled">
+              <div class="row"><label style="width:92px">Cor do fundo</label><input type="color" data-k="intro.color"><span class="hint" style="margin:0">detectada sozinha ao enviar</span></div>
+              <div class="sl"><label>Tolerância</label><input type="range" min="0.02" max="0.7" step="0.01" data-k="intro.similarity"><output></output></div>
+              <div class="sl"><label>Borda suave</label><input type="range" min="0" max="0.4" step="0.01" data-k="intro.blend"><output></output></div>
+              <div class="sl"><label>Tamanho</label><input type="range" min="20" max="100" step="5" data-k="intro.scale"><output data-unit="%"></output></div>
+              <div class="sl"><label>Som da intro</label><input type="range" min="0" max="1.5" step="0.05" data-k="intro.volume"><output></output></div>
+              <p class="hint" style="margin:0">Sobrou verde nas bordas? Aumente a tolerância. Sumiu parte da intro? Diminua. Som 0 = intro sem som (a música segue no volume normal). Para ver no vídeo, gere a prévia de 20 s a partir de 0:00.</p>
+            </div>
+          </div>
+          <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="small ghost" id="btnIntroRemove">Remover intro do canal</button></div>
+        </div>
+      </div>
+
+      <div data-pane="ov">
+        <div class="row" style="gap:12px;margin-bottom:10px">
+          <img id="ovThumb" class="hidden" style="max-width:120px;max-height:60px;border-radius:6px;background:repeating-conic-gradient(#333 0 25%,#222 0 50%) 0 0/16px 16px">
+          <p class="hint" style="margin:0">Lembrete do canal <b id="ovChannel"></b>. Tudo aqui (imagem, tamanho, posição e tempos) vale para <b>todos os vídeos desse canal</b>. Cada canal tem o seu.</p>
+        </div>
+        <div class="drop" id="dropOv">Arraste aqui o PNG (fundo transparente) ou GIF animado<br><small>ou clique para escolher</small></div>
+        <input type="file" id="fileOv" accept=".png,.gif,.webp,.jpg,.jpeg" class="hidden">
+        <div class="section">
+          <label class="switch"><input type="checkbox" data-k="overlay.enabled"> Mostrar no vídeo</label>
+          <div class="sub" data-if="overlay.enabled">
+            <div class="sl"><label>Tamanho</label><input type="range" min="120" max="1400" step="10" data-k="overlay.width"><output data-unit="px"></output></div>
+            <div class="sl"><label>Primeira vez</label><input type="range" min="0" max="900" step="15" data-k="overlay.first"><output data-fmt="time"></output></div>
+            <div class="sl"><label>Repete a cada</label><input type="range" min="180" max="3600" step="60" data-k="overlay.every"><output data-fmt="min"></output></div>
+            <div class="row"><label style="width:92px">Animação</label><select data-k="overlay.anim" style="flex:1"><option value="fade">Aparecer (fade)</option><option value="slide-left">Deslizar da esquerda</option><option value="slide-right">Deslizar da direita</option><option value="rise">Subir</option><option value="none">Sem animação</option></select><button class="small ghost playAnim" title="ver na prévia">▶ ver</button></div>
+            <div class="sl"><label>Fica na tela</label><input type="range" min="3" max="30" step="1" data-k="overlay.duration"><output data-unit="s"></output></div>
+            <p class="hint" id="ovSchedule"></p>
+          </div>
+        </div>
+        <p class="hint">Arraste a imagem na prévia para escolher onde ela aparece.</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const api = async (url, opts = {}) => {
+  const r = await fetch(url, { ...opts, headers: { 'content-type': 'application/json', ...(opts.headers || {}) },
+    body: opts.body && typeof opts.body !== 'string' ? JSON.stringify(opts.body) : opts.body });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error === 'rota desconhecida' ? 'O app foi atualizado: feche a janela preta do Music Studio e abra o atalho de novo.' : j.error || `erro ${r.status}`);
+  return j;
+};
+const fmt = (s) => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+const gb = (b) => b > 1e9 ? (b / 1e9).toFixed(2) + ' GB' : (b / 1e6).toFixed(0) + ' MB';
+const getK = (o, k) => k.split('.').reduce((a, p) => a?.[p], o);
+const setK = (o, k, v) => { const ps = k.split('.'); let a = o; ps.slice(0, -1).forEach((p) => (a = a[p] ??= {})); a[ps.at(-1)] = v; };
+function toast(msg, err, action) {
+  $$('.toast').forEach((x) => x.remove());
+  const t = document.createElement('div'); t.className = 'toast' + (err ? ' e' : ''); t.textContent = msg;
+  if (action) {
+    const b = document.createElement('button'); b.className = 'small'; b.style.marginLeft = '12px'; b.textContent = action.label;
+    b.onclick = () => { t.remove(); action.fn(); }; t.append(b);
+  }
+  document.body.append(t); setTimeout(() => t.remove(), action ? 8000 : err ? 6000 : 2200);
+}
+
+const S = { channels: [], unconfiguredChannelFolders: [], invalidChannelFolders: [], projects: [], visuals: [], cur: null, p: null, timeline: null, tab: localStorage.getItem('tab') || 'bg', job: null, lastJobId: null };
+
+// ---------- sidebar ----------
+async function refreshState() {
+  const st = await api('/api/state');
+  Object.assign(S, { channels: st.channels, unconfiguredChannelFolders: st.unconfiguredChannelFolders || [], invalidChannelFolders: st.invalidChannelFolders || [], projects: st.projects });
+  renderList();
+  if (S.p) {
+    const sel = $('#fChannel');
+    if (sel) { sel.length = 0; for (const c of S.channels) sel.add(new Option(c.name, c.id)); sel.value = S.p.channel || ''; }
+  }
+  onJob(st.job, st);
+}
+function renderList() {
+  const el = $('#plist'); el.innerHTML = '';
+  const fsel = $('#pFilter'), fv = localStorage.getItem('filter') || '';
+  fsel.length = 1; for (const c of S.channels) fsel.add(new Option(c.name, c.id));
+  fsel.value = S.channels.some((c) => c.id === fv) ? fv : '';
+  fsel.onchange = () => { localStorage.setItem('filter', fsel.value); renderList(); };
+  const cl = $('#clist'); cl.innerHTML = '';
+  for (const c of S.channels) {
+    const d = document.createElement('div'); d.className = 'citem'; d.title = 'editar canal';
+    d.innerHTML = '<span></span><span class="m">' + S.projects.filter((p) => p.channel === c.id).length + ' vídeos ⚙</span>';
+    d.firstChild.textContent = c.name; d.onclick = () => channelModal(c.id); cl.append(d);
+  }
+  for (const folder of S.unconfiguredChannelFolders) {
+    const d = document.createElement('div'); d.className = 'citem'; d.title = 'Criar channel.json nesta pasta';
+    d.innerHTML = '<span></span><span class="m">configurar ⚙</span>';
+    d.firstChild.textContent = folder; d.onclick = () => channelModal(null, folder); cl.append(d);
+  }
+  for (const bad of S.invalidChannelFolders) {
+    const d = document.createElement('div'); d.className = 'citem'; d.title = `Erro em channels/${bad.id}/channel.json: ${bad.error}`;
+    d.innerHTML = '<span></span><span class="m">JSON inválido ⚠</span>';
+    d.firstChild.textContent = bad.id; d.onclick = () => toast(`Corrija channels/${bad.id}/channel.json: ${bad.error}`, true); cl.append(d);
+  }
+  if (!S.projects.some((p) => !fsel.value || p.channel === fsel.value)) el.innerHTML = '<p class="hint" style="padding:0 10px">Nenhum vídeo neste canal ainda.</p>';
+  for (const p of S.projects.filter((p) => !fsel.value || p.channel === fsel.value)) {
+    const d = document.createElement('div');
+    d.className = 'pitem' + (p.name === S.cur ? ' sel' : '');
+    const ch = S.channels.find((c) => c.id === p.channel)?.name || p.channel || '';
+    d.innerHTML = `<div class="t"></div><div class="m"></div>`;
+    $('.t', d).textContent = p.title;
+    $('.m', d).textContent = `${ch} · ${p.tracks} músicas`;
+    if (p.importing) $('.m', d).insertAdjacentHTML('beforeend', '<span class="badge" style="background:#1e3549;color:#9cc8f0">importando</span>');
+    if (p.done) $('.m', d).insertAdjacentHTML('beforeend', `<span class="badge" style="${p.renderStatus === 'fresh' ? '' : 'background:#49351e;color:var(--warn)'}">${p.renderStatus === 'fresh' ? 'pronto' : p.renderStatus === 'stale' ? 'desatualizado' : 'não verificado'}</span>`);
+    d.onclick = () => openProject(p.name);
+    el.append(d);
+  }
+}
+
+$('#btnNew').onclick = () => {
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="card"><h3 style="margin:0">Novo vídeo</h3>
+    <div class="col"><label>Título do vídeo</label><input type="text" id="nTitle" placeholder="Ex.: Autumn Café Bossa Nova ☕"></div>
+    <div class="col"><label>Canal</label><select id="nChannel"></select></div>
+    <p class="hint" style="margin:0">O visual (visualizer, textos, descrição) vem do padrão do canal — dá para ajustar depois.</p>
+    <div class="row" style="justify-content:flex-end"><button class="ghost" id="nCancel">Cancelar</button><button class="primary" id="nOk">Criar</button></div></div>`;
+  document.body.append(m);
+  const sel = $('#nChannel', m);
+  for (const c of S.channels) sel.add(new Option(c.name, c.id));
+  sel.add(new Option('+ criar canal novo…', '__new'));
+  const last = localStorage.getItem('filter') || S.p?.channel || S.projects[0]?.channel; if (last) sel.value = last;
+  sel.onchange = async () => { if (sel.value !== '__new') return; const id = await channelModal(null);
+    if (id) { sel.add(new Option(S.channels.find((c) => c.id === id).name, id), sel.length - 1); sel.value = id; } else sel.value = S.channels[0]?.id || ''; };
+  $('#nTitle', m).focus();
+  $('#nCancel', m).onclick = () => m.remove();
+  const ok = async () => {
+    try {
+      const { name } = await api('/api/projects', { method: 'POST', body: { title: $('#nTitle', m).value, channel: sel.value } });
+      m.remove(); S.tab = 'bg'; await refreshState(); openProject(name);
+    } catch (e) { toast(e.message, true); }
+  };
+  $('#nOk', m).onclick = ok;
+  $('#nTitle', m).onkeydown = (e) => e.key === 'Enter' && ok();
+};
+
+// ---------- channels ----------
+$('#btnNewCh').onclick = () => channelModal(null);
+$('#btnRefreshCh').onclick = () => refreshState().then(() => toast('Pastas de canais atualizadas ✓')).catch((e) => toast(e.message, true));
+function channelModal(id, folder = null) {
+  return new Promise(async (resolve) => {
+    const ch = id ? await api('/api/channels/' + encodeURIComponent(id)) : null;
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card" style="width:min(560px,94vw)"><h3 style="margin:0">${id ? 'Editar canal' : folder ? 'Configurar pasta de canal' : 'Novo canal'}</h3>
+      ${folder ? '<p class="hint" id="cFolderHint" style="margin:0"></p>' : ''}
+      <div class="col"><label>Nome do canal</label><input type="text" id="cName" placeholder="Ex.: Lo-fi Night Drive"></div>
+      ${id ? '' : '<div class="col"><label>Começar com o visual de</label><select id="cFrom"></select><span class="hint" style="margin:2px 0 0">Copia visualizer, fontes e posição dos textos. Dá para mudar tudo depois, pelo vídeo.</span></div>'}
+      <div class="col"><label>Marca na tela (canto do vídeo)</label><input type="text" id="cMark" placeholder="vazio = sem marca"></div>
+      <div class="col"><label>Modelo da descrição do YouTube</label><textarea id="cDesc" rows="7"></textarea>
+        <span class="hint" style="margin:2px 0 0"><b>{title}</b> vira o título do vídeo e <b>{tracklist}</b> a lista de músicas com os tempos (vira capítulos).</span></div>
+      <div class="col"><label>Tags (separadas por vírgula)</label><textarea id="cTags" rows="2" style="min-height:50px"></textarea></div>
+      <div class="row" style="justify-content:flex-end"><button class="ghost" id="cCancel">Cancelar</button><button class="primary" id="cOk">${id ? 'Salvar' : 'Criar canal'}</button></div></div>`;
+    document.body.append(m);
+    if (folder) $('#cFolderHint', m).textContent = `A configuração será salva em channels/${folder}/channel.json. Os outros arquivos da pasta serão preservados.`;
+    if (!id) {
+      $('#cFrom', m).add(new Option('Padrão básico', ''));
+      for (const c of S.channels) $('#cFrom', m).add(new Option(c.name, c.id));
+      if (S.channels.length) $('#cFrom', m).value = S.channels[0].id;
+    }
+    $('#cName', m).value = ch?.name || folder || '';
+    $('#cMark', m).value = ch?.watermark || folder || '';
+    $('#cDesc', m).value = ch?.description.template || '{title}\n\n🎵 Tracklist\n{tracklist}';
+    $('#cTags', m).value = (ch?.description.tags || []).join(', ');
+    if (!id) $('#cName', m).oninput = () => ($('#cMark', m).value = $('#cName', m).value);
+    $('#cName', m).focus();
+    const close = (v) => { m.remove(); resolve(v); };
+    $('#cCancel', m).onclick = () => close(null);
+    $('#cOk', m).onclick = async () => {
+      try {
+        const name = $('#cName', m).value;
+        const cid = id || (await api('/api/channels', { method: 'POST', body: { name, from: $('#cFrom', m).value, folder } })).id;
+        await api('/api/channels/' + encodeURIComponent(cid), { method: 'PUT', body: { name, watermark: $('#cMark', m).value,
+          description: { template: $('#cDesc', m).value, tags: $('#cTags', m).value.split(',').map((t) => t.trim()).filter(Boolean) } } });
+        await refreshState();
+        if (S.cur && S.p?.channel === cid) openProject(S.cur);
+        toast(id ? 'Canal salvo ✓' : 'Canal criado ✓');
+        close(cid);
+      } catch (e) { toast(e.message, true); }
+    };
+  });
+}
+
+// ---------- project ----------
+async function openProject(name) {
+  stopAudio();
+  projectOpenedAt = introStart = performance.now();
+  S.timeline = null;
+  S.cur = name; localStorage.setItem('cur', name); renderList();
+  [S.p] = await Promise.all([api('/api/projects/' + encodeURIComponent(name)), getFonts()]);
+  const main = $('#main'); main.innerHTML = ''; main.append($('#tplProject').content.cloneNode(true));
+  bindProject(); renderProject(); renderSystemFontChoices(); loadFonts(); loadVisuals().catch((e) => toast(e.message, true));
+  showResult();
+}
+
+async function getFonts(refresh) {
+  if (!S.fonts || refresh) S.fonts = (await api('/api/fonts' + (refresh ? '?refresh' : ''))).fonts;
+  return S.fonts;
+}
+// Font / size / color controls for one text block; sub-blocks (subtitle, label) show what they inherit.
+function buildFontRows() {
+  for (const row of $$('.fontrow')) {
+    const k = row.dataset.font;
+    row.innerHTML = `<select data-k="${k}.font" title="fonte"></select><input type="number" min="${row.dataset.min}" max="${row.dataset.max}" data-k="${k}.size" title="tamanho"><input type="color" data-k="${k}.color" title="cor">`;
+    fillFontSelect($('select', row));
+  }
+}
+function fillFontSelect(sel) {
+  const cur = sel.value; sel.innerHTML = '';
+  let group = null;
+  for (const f of S.fonts || []) {
+    const g = f.source === 'adicionada' ? 'Fontes adicionadas' : 'Fontes do Windows';
+    if (!group || group.label !== g) { group = document.createElement('optgroup'); group.label = g; sel.append(group); }
+    group.append(new Option(f.name, f.file));
+  }
+  if (cur) setFontValue(sel, cur);
+}
+function setFontValue(sel, file) {
+  if (!file) return;
+  const opt = [...sel.options].find((o) => o.value.toLowerCase() === file.replaceAll('\\', '/').toLowerCase());
+  if (opt) sel.value = opt.value;
+  else { const o = new Option(file.split(/[\\/]/).pop(), file); sel.prepend(o); sel.value = file; }
+}
+function renderSystemFontChoices() {
+  const sel = $('#systemFontSelect'); if (!sel) return;
+  const query = $('#systemFontSearch').value.trim().toLocaleLowerCase();
+  const current = sel.value;
+  const matches = (S.fonts || []).filter((f) => f.name.toLocaleLowerCase().includes(query));
+  sel.replaceChildren();
+  for (const f of matches) sel.add(new Option(`${f.name} · ${f.source === 'adicionada' ? 'importada' : 'Windows'}`, f.file));
+  if (matches.some((f) => f.file === current)) sel.value = current;
+  $('#systemFontCount').textContent = `(${matches.length} de ${(S.fonts || []).length})`;
+  previewSystemFont();
+}
+async function previewSystemFont() {
+  const file = $('#systemFontSelect')?.value; if (!file) return;
+  try { const fam = await ensureFont(file); if ($('#systemFontSelect')?.value === file) $('#systemFontPreview').style.fontFamily = `"${fam}", sans-serif`; }
+  catch { $('#systemFontPreview').style.fontFamily = 'sans-serif'; }
+}
+
+function bindProject() {
+  buildFontRows();
+  $('#stageExpand').onclick = () => document.fullscreenElement ? document.exitFullscreen() : $('#stage').requestFullscreen();
+  $('#btnVizFill').onclick = () => {
+    const v = S.p.settings.visualizer;
+    if (RADIAL_STYLES.includes(v.preset)) { v.radius = 240; v.ringGap = 10; v.height = 290; v.center = { x: .5, y: .5 }; }
+    else { v.width = 1920; v.height = 1080; v.bottom = 0; }
+    syncControls(); save();
+  };
+  const sel = $('#fChannel');
+  for (const c of S.channels) sel.add(new Option(c.name, c.id));
+  $('#fTitle').oninput = () => { S.p.title = $('#fTitle').value; save(); checkGlyphs(); };
+  sel.onchange = async () => {
+    const to = S.channels.find((c) => c.id === sel.value)?.name;
+    if (!confirm(`Mover este vídeo para o canal "${to}"?
+
+O visual, as fontes e o lembrete passam a ser os desse canal.`)) { sel.value = S.p.channel; return; }
+    await flush(); S.p = await api('/api/projects/' + S.cur, { method: 'PUT', body: { channel: sel.value } }); renderProject(); loadFonts(); loadPresets(); refreshState(); };
+  $$('#tabs button').forEach((b) => (b.onclick = () => { S.tab = b.dataset.tab; localStorage.setItem('tab', S.tab); showTab(); }));
+
+  // generic bound controls
+  for (const el of $$('[data-k]')) {
+    const k = el.dataset.k;
+    const ev = ['range', 'text', 'color', 'number'].includes(el.type) ? 'input' : 'change';
+    el.addEventListener(ev, () => {
+      let v = el.type === 'checkbox' ? el.checked : el.type === 'range' || el.type === 'number' ? Number(el.value) : el.value;
+      if (el.type === 'number' && !(v > 0)) return;
+      setK(S.p.settings, k, v);
+      if (k.endsWith('.font')) loadFonts();
+      if (k === 'audio.crossfade') {
+        S.p.audio.crossfade = v;
+        S.p.total = Math.max(0, S.p.tracks.reduce((sum, track) => sum + track.duration, 0) - Math.max(0, S.p.tracks.length - 1) * v);
+        S.p.totalText = fmt(S.p.total);
+        $('#timeline').max = Math.max(1, Math.floor(S.p.total || 1));
+        renderTracks();
+      }
+      if (k.startsWith('audio.ambience.')) syncAmbiencePlayer();
+      if (k.startsWith('text.') && /\.(font|text|enabled|prefix)$/.test(k)) checkGlyphs();
+      if (k === 'visualizer.anim') introStart = performance.now();
+      if (k === 'backgroundAnim') projectOpenedAt = performance.now();
+      if (k.startsWith('intro.')) introFrame();
+      syncOutputs(); syncVisibility(); save();
+    });
+  }
+  $('#useColor2').onchange = (e) => {
+    S.p.settings.visualizer.color2 = e.target.checked ? ($('#color2').value || '#F0C88A') : null;
+    syncVisibility(); save();
+  };
+  $('#anchorCenter').onchange = (e) => { S.p.settings.visualizer.anchor = e.target.checked ? 'center' : 'bottom'; save(); };
+
+  // background
+  const dropBg = $('#dropBg'), fileBg = $('#fileBg');
+  dropBg.onclick = () => fileBg.click();
+  fileBg.onchange = () => fileBg.files[0] && upload('background', fileBg.files[0]);
+  dropZone(dropBg, (files) => files[0] && upload('background', files[0]));
+  const dropVisuals = $('#dropVisuals'), fileVisuals = $('#fileVisuals');
+  dropVisuals.onclick = () => fileVisuals.click();
+  fileVisuals.onchange = () => { importVisuals([...fileVisuals.files]); fileVisuals.value = ''; };
+  dropZone(dropVisuals, importVisuals);
+
+  // tracks
+  const dropT = $('#dropTracks'), fileT = $('#fileTracks');
+  dropT.onclick = () => fileT.click();
+  fileT.onchange = () => uploadMany([...fileT.files]);
+  dropZone(dropT, uploadMany);
+  const ambDrop = $('#dropAmbience'), ambInput = $('#fileAmbience');
+  ambDrop.onclick = () => ambInput.click();
+  ambInput.onchange = () => { const file = ambInput.files[0]; ambInput.value = ''; if (file) uploadAmbience(file); };
+  dropZone(ambDrop, (files) => files[0] && uploadAmbience(files[0]));
+  $('#ambRemove').onclick = async () => {
+    try { await flush(); stopAudio(); S.p = await api(`/api/projects/${encodeURIComponent(S.cur)}/ambience`, { method: 'DELETE' });
+      renderProject(); toast('Som ambiente removido ✓'); }
+    catch (e) { toast(e.message, true); }
+  };
+  $('#player').onended = () => { stopAudio(); renderTracks(); };
+  // Step 1: list the songs behind the links; step 2 (pick box): choose songs and the playlist they go into.
+  $('#btnFlow').onclick = async () => {
+    const url = $('#fFlow').value.trim(); if (!url) return toast('cole o link de uma playlist ou de músicas do Flow', true);
+    const b = $('#btnFlow'); b.disabled = true; b.textContent = 'Lendo…';
+    try { showPick(url, await api(`/api/projects/${S.cur}/flow/preview`, { method: 'POST', body: { url } })); }
+    catch (e) { toast(e.message, true); }
+    finally { b.textContent = 'Ver músicas'; b.disabled = importingNow(); }
+  };
+  $('#flowCancel').onclick = async () => {
+    try { applyImport(await api(`/api/projects/${S.cur}/flow/cancel`, { method: 'POST' })); } catch (e) { toast(e.message, true); }
+  };
+
+  // Searchable categories; variants remain editable through the controls below.
+  $('#styleSearch').oninput = renderStyleChoices;
+  renderStyleChoices();
+  const centerInput = $('#fileCenterImage');
+  $('#btnCenterImage').onclick = () => centerInput.click();
+  centerInput.onchange = async () => {
+    const file = centerInput.files[0]; centerInput.value = ''; if (!file) return;
+    try {
+      await flush();
+      const r = await fetch(`/api/projects/${S.cur}/center-image?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error);
+      S.p = j; renderProject(); toast('Foto central adicionada ✓');
+    } catch (e) { toast(e.message, true); }
+  };
+  $('#btnCenterRemove').onclick = async () => {
+    try { await flush(); S.p = await api(`/api/projects/${S.cur}/center-image`, { method: 'DELETE' }); renderProject(); toast('Foto central removida ✓'); }
+    catch (e) { toast(e.message, true); }
+  };
+  $('#centerVisualSelect').onchange = async (e) => {
+    if (!e.target.value) return;
+    try { await flush(); S.p = await api(`/api/projects/${S.cur}/center-image`, { method: 'POST', body: { name: e.target.value } }); renderProject(); toast('Imagem da biblioteca aplicada no centro ✓'); }
+    catch (err) { toast(err.message, true); }
+  };
+  for (const b of [$('#btnChannelLook'), ...$$('.saveLook')]) b.onclick = async () => {
+    try { await flush(); S.p = await api(`/api/projects/${S.cur}/channel-look`, { method: 'POST', body: { settings: S.p.settings } }); toast('Salvo como padrão do canal ✓ — os próximos vídeos já começam assim'); }
+    catch (e) { toast(e.message, true); }
+  };
+
+  // channel intro (green screen)
+  const dropIntro = $('#dropIntro'), fileIntro = $('#fileIntro');
+  const sendIntro = async (file) => {
+    if (!file) return;
+    const label = dropIntro.innerHTML;
+    try {
+      await flush(); // a pending save must not overwrite the color detected on upload
+      dropIntro.textContent = `Enviando ${file.name}…`;
+      const r = await fetch(`/api/channels/${encodeURIComponent(S.p.channel)}/intro?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error);
+      S.p = await api('/api/projects/' + S.cur); renderProject();
+      toast(`Intro salva no canal ✓ — cor do fundo detectada: ${j.color}`);
+    } catch (e) { dropIntro.innerHTML = label; toast(e.message, true); }
+  };
+  dropIntro.onclick = () => fileIntro.click();
+  fileIntro.onchange = () => { sendIntro(fileIntro.files[0]); fileIntro.value = ''; };
+  dropZone(dropIntro, (files) => sendIntro(files[0]));
+  $('#introAt').oninput = () => { syncOutputs(); introFrame(); };
+  $('#btnIntroRemove').onclick = async () => {
+    if (!confirm('Remover a intro deste canal? Ela sai de todos os vídeos do canal (os vídeos já renderizados não mudam).')) return;
+    try { await flush(); await api(`/api/channels/${encodeURIComponent(S.p.channel)}/intro`, { method: 'DELETE' }); S.p = await api('/api/projects/' + S.cur); renderProject(); toast('Intro removida'); }
+    catch (e) { toast(e.message, true); }
+  };
+
+  // channel reminder image
+  const dropOv = $('#dropOv'), fileOv = $('#fileOv');
+  const sendOv = async (file) => {
+    if (!file) return;
+    try {
+      const r = await fetch(`/api/channels/${encodeURIComponent(S.p.channel)}/overlay?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error);
+      S.p = await api('/api/projects/' + S.cur);
+      if (!S.p.settings.overlay.enabled) { S.p.settings.overlay.enabled = true; save(); }
+      renderProject(); toast('Imagem do lembrete salva no canal ✓ — arraste na prévia para posicionar');
+    } catch (e) { toast(e.message, true); }
+  };
+  dropOv.onclick = () => fileOv.click();
+  fileOv.onchange = () => { sendOv(fileOv.files[0]); fileOv.value = ''; };
+  dropZone(dropOv, (files) => sendOv(files[0]));
+  bindDrag();
+  $$('.playAnim').forEach((b) => (b.onclick = () => { animStart = introStart = performance.now(); }));
+  $('#vizPlayAnim').onclick = () => { introStart = performance.now(); };
+  $$('.ctaPos').forEach((b) => (b.onclick = () => {
+    S.p.settings.text.cta.x = '(w-text_w)/2';
+    S.p.settings.text.cta.y = { top: '90', center: '510', bottom: '920' }[b.dataset.pos];
+    save();
+  }));
+
+  $('#btnRefreshFonts').onclick = async () => {
+    try { await getFonts(true); $$('.fontrow select').forEach(fillFontSelect); renderProject(); renderSystemFontChoices(); toast(`${S.fonts.length} fontes disponíveis ✓`); }
+    catch (e) { toast(e.message, true); }
+  };
+  $('#btnAddFont').onclick = () => $('#fileFont').click();
+  $('#systemFontSearch').oninput = renderSystemFontChoices;
+  $('#systemFontSelect').onchange = previewSystemFont;
+  $('#btnUseSystemFont').onclick = () => {
+    const file = $('#systemFontSelect').value, target = $('#fontTarget').value;
+    if (!file || !target) return toast('Escolha uma fonte e um texto em “Aplicar em”.', true);
+    setK(S.p.settings, target + '.font', file); renderProject(); loadFonts(); save();
+    const block = getK(S.p.settings, target);
+    toast(`Fonte aplicada ✓${block?.enabled === false ? ' — ative esse elemento de texto para vê-la no vídeo' : ''}`);
+  };
+  $('#fileFont').onchange = async () => {
+    const files = [...$('#fileFont').files]; if (!files.length) return;
+    const target = $('#fontTarget').value;
+    const added = [], errors = [];
+    for (const file of files) {
+      try {
+        const r = await fetch('/api/fonts?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
+        const j = await r.json(); if (!r.ok) throw new Error(j.error);
+        S.fonts = j.fonts;
+        added.push(j);
+      } catch (e) { errors.push(`${file.name}: ${e.message}`); }
+    }
+    $('#fileFont').value = '';
+    if (added.length) {
+      $$('.fontrow select').forEach(fillFontSelect); renderSystemFontChoices();
+      if (target) { setK(S.p.settings, target + '.font', added.at(-1).file); save(); }
+      renderProject(); loadFonts();
+    }
+    toast(`${added.length} fonte(s) adicionada(s)${target && added.length ? ' e última aplicada ao texto escolhido' : ''}${errors.length ? `. Erros: ${errors.join('; ')}` : ' ✓'}`, !!errors.length);
+  };
+  $('#btnPreview').onclick = () => run('preview');
+  $('#btnBuild').onclick = () => run('build');
+  $('#btnOverlay').onclick = () => run('overlay');
+  for (const slot of ['a', 'b']) $(`#capture${slot.toUpperCase()}`).onclick = async () => {
+    try { await flush(); const x = await api(`/api/projects/${S.cur}/compare/capture`, { method: 'POST', body: { slot, settings: S.p.settings } });
+      S.p.compareSlots = x.slots; $('#compareStatus').textContent = `A ${x.slots.a ? '✓' : '–'} · B ${x.slots.b ? '✓' : '–'}`; toast(`Opção ${slot.toUpperCase()} guardada ✓`); }
+    catch (e) { toast(e.message, true); }
+  };
+  $('#btnCompare').onclick = () => {
+    if (!S.p.compareSlots?.a || !S.p.compareSlots?.b) return toast('guarde as opções A e B primeiro', true);
+    run('compare');
+  };
+  $('#btnCancel').onclick = async () => onJob((await api('/api/job/cancel', { method: 'POST' })).job);
+  const loadPresets = async () => {
+    if (!S.p?.channel) return;
+    const data = await api('/api/channels/' + encodeURIComponent(S.p.channel) + '/presets');
+    const sel = $('#presetSelect'); if (!sel) return;
+    sel.length = 1; for (const p of data.presets) sel.add(new Option(p.name, p.id));
+  };
+  $('#presetSave').onclick = async () => {
+    const name = prompt('Nome do modelo de visual:'); if (!name?.trim()) return;
+    try { await flush(); await api('/api/channels/' + encodeURIComponent(S.p.channel) + '/presets', { method: 'POST', body: { name, settings: S.p.settings } });
+      await loadPresets(); toast('Modelo salvo ✓'); } catch (e) { toast(e.message, true); }
+  };
+  $('#presetApply').onclick = async () => {
+    const id = $('#presetSelect').value; if (!id) return toast('escolha um modelo', true);
+    if (!confirm('Aplicar este modelo ao vídeo? As configurações visuais atuais serão substituídas.')) return;
+    try { await flush(); S.p = await api(`/api/projects/${S.cur}/preset`, { method: 'POST', body: { id } }); renderProject(); loadFonts(); toast('Modelo aplicado ✓'); }
+    catch (e) { toast(e.message, true); }
+  };
+  loadPresets().catch((e) => toast(e.message, true));
+  $('#safeGuides').checked = localStorage.getItem('safeGuides') === '1';
+  $('#safeGuides').onchange = () => localStorage.setItem('safeGuides', $('#safeGuides').checked ? '1' : '0');
+  $('#timeline').oninput = () => {
+    S.timeline = Number($('#timeline').value);
+    $('#timelineText').textContent = fmt(S.timeline);
+    $('#fPrevStart').value = fmt(S.timeline);
+    const tr = trackAtTime(S.timeline);
+    $('#timelineTrack').textContent = tr ? `${tr.track.title} · ${Math.round(tr.fraction * 100)}% da faixa` : 'Sem música';
+    const video = $('#bgVideo');
+    if (video?.duration && Number.isFinite(video.duration)) video.currentTime = S.timeline % video.duration;
+  };
+  $('#timelineLive').onclick = () => { S.timeline = null; $('#timelineTrack').textContent = 'Prévia ao vivo'; };
+  const storage = async () => {
+    try { const x = await api(`/api/projects/${S.cur}/storage`);
+      $('#storageInfo').textContent = `Músicas ${gb(x.tracks - (x.trash || 0))} · lixeira de músicas ${gb(x.trash || 0)} · fundo ${gb(x.background)} · cache ${gb(x.cache)} · resultados ${gb(x.output)} (prévias ${gb(x.previews)})`;
+    } catch (e) { toast(e.message, true); }
+  };
+  $('#storageBox').ontoggle = () => { if ($('#storageBox').open) storage(); };
+  $('#btnStorageRefresh').onclick = storage;
+  $('#btnStorageClean').onclick = async () => {
+    if (!confirm('Limpar o cache de trabalho, as prévias e a lixeira de músicas? As músicas removidas (✕ ou Remover playlist) são apagadas de vez. O vídeo final, as músicas do vídeo, o fundo e a sessão de envio são preservados. O próximo render pode demorar mais.')) return;
+    try { await api(`/api/projects/${S.cur}/storage`, { method: 'POST', body: { cache: true, previews: true, trash: true } });
+      S.p = await api(`/api/projects/${S.cur}`); renderProject(); storage(); toast('Cache e prévias limpos ✓'); }
+    catch (e) { toast(e.message, true); }
+  };
+}
+
+const STYLE_CATALOG = [
+  ['Barras e equalizadores', [
+    ['capsules','Cápsulas','capsules',{}], ['miniBars','Minibarras','capsules',{bars:96,gap:.6,height:90,anchor:'bottom'}],
+    ['bassBars','Graves','capsules',{bars:40,gap:.3,height:210,mirror:true,anchor:'bottom'}],
+    ['mirrorBars','Espelho','capsules',{bars:64,gap:.45,height:230,anchor:'center'}],
+    ['softBars','Colunas suaves','capsules',{bars:48,gap:.7,height:165,glow:18,anchor:'bottom'}],
+    ['blocks','Blocos','blocks',{bars:54,gap:.28,height:155}], ['pixelBlocks','Pixel','blocks',{bars:120,gap:.2,height:95}],
+    ['wideBlocks','Painéis','blocks',{bars:24,gap:.14,height:205}],
+    ['dots','Pontos','dots',{}], ['microDots','Micropontos','dots',{bars:100,gap:.65,height:105}],
+    ['ledWall','Painel LED','dots',{bars:40,gap:.3,height:220}],
+    ['needles','Agulhas','needles',{}], ['fineNeedles','Agulhas finas','needles',{bars:110,lineWidth:1,gap:.65,height:195}],
+    ['lightPulses','Pulsos de luz','needles',{bars:50,lineWidth:2,glow:20,height:130}],
+  ]],
+  ['Ondas e curvas', [
+    ['silk','Seda','silk',{}], ['fineSilk','Fio de seda','silk',{lineWidth:1,fillAlpha:.08,height:120}],
+    ['vapor','Vapor','silk',{lineWidth:2,fillAlpha:.55,height:230,glow:18}],
+    ['mountains','Montanhas','mountains',{}], ['sharpPeaks','Picos','mountains',{bars:32,lineWidth:2,fillAlpha:.16,height:205}],
+    ['dunes','Dunas','mountains',{bars:20,lineWidth:5,fillAlpha:.55,height:120}],
+    ['ribbon','Fita','ribbon',{}], ['thinRibbon','Fios','ribbon',{lineWidth:1,height:100}],
+    ['deepRibbon','Fitas largas','ribbon',{lineWidth:6,height:260,glow:14}],
+    ['zigzag','Zigue-zague','zigzag',{lineWidth:3}], ['neonZigzag','Zigue-zague neon','zigzag',{lineWidth:7,glow:20,height:180}],
+  ]],
+  ['Círculos e foto central', [
+    ['ring','Anel','ring',{}], ['miniRing','Anel fino','ring',{bars:96,gap:.72,height:110,lineWidth:2}],
+    ['wideRing','Anel largo','ring',{bars:40,gap:.2,height:215}],
+    ['halo','Halo','halo',{}], ['thinHalo','Halo fino','halo',{lineWidth:1,height:110,glow:5}],
+    ['thickHalo','Halo luminoso','halo',{lineWidth:7,height:180,glow:20}],
+    ['petals','Pétalas','petals',{bars:42,lineWidth:2}], ['smallPetals','Pétalas delicadas','petals',{bars:84,lineWidth:1,height:105}],
+    ['radialDots','Pontos radiais','radialDots',{}], ['beadRing','Colar de luz','radialDots',{bars:100,height:95,glow:15}],
+  ]],
+  ['Partículas e raios', [
+    ['orbit','Órbita','orbit',{}], ['satellites','Satélites','orbit',{bars:26,height:220,glow:9}],
+    ['nebula','Nebulosa','orbit',{bars:100,height:180,glow:22}],
+    ['sunburst','Raios','sunburst',{}], ['thinRays','Raios finos','sunburst',{bars:100,lineWidth:1,height:180}],
+    ['solarFlare','Explosão solar','sunburst',{bars:36,lineWidth:7,height:220,glow:20}],
+  ]],
+];
+const DRAWN_STYLES = STYLE_CATALOG.flatMap(([, entries]) => entries.map(([id, label]) => [id, label]));
+const STYLE_BASE = Object.fromEntries(STYLE_CATALOG.flatMap(([, entries]) => entries.map(([id,,base]) => [id, base])));
+const RADIAL_STYLES = STYLE_CATALOG.slice(2).flatMap(([, entries]) => entries.map(([id]) => id));
+function renderStyleChoices() {
+  const root = $('#styles'); if (!root) return;
+  const q = $('#styleSearch').value.trim().toLocaleLowerCase(); root.replaceChildren();
+  let count = 0;
+  for (const [category, entries] of STYLE_CATALOG) {
+    const found = entries.filter(([, label]) => !q || `${category} ${label}`.toLocaleLowerCase().includes(q));
+    if (!found.length) continue;
+    count += found.length;
+    const section = document.createElement('div'); section.className = 'style-group';
+    const heading = document.createElement('h5'); heading.textContent = `${category} · ${found.length}`; section.append(heading);
+    const grid = document.createElement('div'); grid.className = 'styles';
+    for (const [id, label, base, options] of found) {
+      const b = document.createElement('button'); b.dataset.style = id;
+      b.innerHTML = styleIcon(base) + `<span>${label}</span>`;
+      b.title = `${label} — ajuste tamanho, barras, cores e brilho abaixo`;
+      b.classList.toggle('on', S.p?.settings.visualizer.preset === id);
+      b.onclick = () => { const v = S.p.settings.visualizer; Object.assign(v, options, { preset: id });
+        if (RADIAL_STYLES.includes(id) && v.height > 500) v.height = 160; syncControls(); save(); };
+      grid.append(b);
+    }
+    section.append(grid); root.append(section);
+  }
+  $('#styleCount').textContent = `(${count} de ${DRAWN_STYLES.length})`;
+}
+function styleIcon(id) {
+  const c = 'currentColor';
+  if (id === 'blocks') return `<svg viewBox="0 0 54 28">${[8,16,11,23,19,12,25,15,20].map((h,i)=>`<rect x="${3+i*6}" y="${27-h}" width="4" height="${h}" fill="${c}"/>`).join('')}</svg>`;
+  if (id === 'zigzag') return `<svg viewBox="0 0 54 28"><path d="M2 14 8 5 14 20 20 8 26 18 32 3 38 22 44 11 52 16" fill="none" stroke="${c}" stroke-width="2"/><path d="M2 14 8 23 14 8 20 20 26 10 32 25 38 6 44 17 52 12" fill="none" stroke="${c}" stroke-width="1" opacity=".55"/></svg>`;
+  if (id === 'petals') return `<svg viewBox="0 0 54 28"><circle cx="27" cy="14" r="6" fill="none" stroke="${c}" opacity=".5"/>${Array.from({length:12},(_,i)=>{const a=i/12*Math.PI*2,x=27+Math.sin(a)*12,y=14-Math.cos(a)*12;return `<line x1="${27+Math.sin(a)*7}" y1="${14-Math.cos(a)*7}" x2="${x}" y2="${y}" stroke="${c}" stroke-width="2"/>`}).join('')}</svg>`;
+  if (id === 'radialDots') return `<svg viewBox="0 0 54 28"><circle cx="27" cy="14" r="6" fill="none" stroke="${c}" opacity=".5"/>${Array.from({length:18},(_,i)=>{const a=i/18*Math.PI*2;return `<circle cx="${27+Math.sin(a)*11}" cy="${14-Math.cos(a)*11}" r="1.6" fill="${c}"/>`}).join('')}</svg>`;
+  if (id === 'capsules') return `<svg viewBox="0 0 54 28">${[6,12,18,10,22,14,8,16,20,9].map((h,i)=>`<line x1="${4+i*5}" x2="${4+i*5}" y1="${14-h/2}" y2="${14+h/2}" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`).join('')}</svg>`;
+  if (id === 'dots') return `<svg viewBox="0 0 54 28">${[2,4,5,3,4,2,5,3,4,2].map((n,i)=>Array.from({length:n},(_,k)=>`<circle cx="${4+i*5}" cy="${25-k*5}" r="1.8" fill="${c}"/>`).join('')).join('')}</svg>`;
+  if (id === 'silk') return `<svg viewBox="0 0 54 28"><path d="M2 14 C10 4, 18 22, 27 8 S 44 20, 52 14 C44 8, 36 22, 27 20 S 10 22, 2 14Z" fill="${c}" fill-opacity=".3" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (id === 'mountains') return `<svg viewBox="0 0 54 28"><path d="M2 25 L2 19 Q8 15 14 20 Q21 23 26 8 Q32 2 38 15 Q44 22 52 12 L52 25Z" fill="${c}" fill-opacity=".4" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (id === 'needles') return `<svg viewBox="0 0 54 28">${[7,14,4,19,10,23,12,18,5].map((h,i)=>`<line x1="${4+i*6}" x2="${4+i*6}" y1="${25-h}" y2="25" stroke="${c}" stroke-opacity=".65" stroke-width="1.5"/><circle cx="${4+i*6}" cy="${25-h}" r="2" fill="${c}"/>`).join('')}</svg>`;
+  if (id === 'ribbon') return `<svg viewBox="0 0 54 28">${[5,9,19,23].map((y,i)=>`<path d="M2 ${y} Q14 ${y-8+i*2} 27 ${y} T52 ${y}" fill="none" stroke="${c}" stroke-opacity="${i===0||i===3?1:.6}" stroke-width="1.5"/>`).join('')}</svg>`;
+  if (id === 'orbit') return `<svg viewBox="0 0 54 28"><circle cx="27" cy="14" r="7" fill="none" stroke="${c}" stroke-opacity=".5"/>${Array.from({length:18},(_,i)=>{const a=i/18*Math.PI*2,r=10+(i%4)*2;return `<circle cx="${27+Math.sin(a)*r}" cy="${14-Math.cos(a)*r}" r="${1+(i%3)*.4}" fill="${c}"/>`}).join('')}</svg>`;
+  if (id === 'halo') return `<svg viewBox="0 0 54 28"><path d="M27 2 C35 1 37 8 44 7 S52 14 47 20 C42 27 34 25 27 26 C18 26 16 20 8 19 S3 9 10 7 C17 4 18 2 27 2Z" fill="none" stroke="${c}" stroke-width="2"/><circle cx="27" cy="14" r="7" fill="none" stroke="${c}" stroke-opacity=".5"/></svg>`;
+  if (id === 'sunburst') return `<svg viewBox="0 0 54 28">${Array.from({length:18},(_,i)=>{const a=i/18*Math.PI*2,l=4+i%4*2;return `<line x1="${27+Math.sin(a)*8}" y1="${14-Math.cos(a)*8}" x2="${27+Math.sin(a)*(8+l)}" y2="${14-Math.cos(a)*(8+l)}" stroke="${c}" stroke-width="1"/><circle cx="${27+Math.sin(a)*(8+l)}" cy="${14-Math.cos(a)*(8+l)}" r="1.3" fill="${c}"/>`}).join('')}</svg>`;
+  return `<svg viewBox="0 0 54 28">${Array.from({length:16},(_,i)=>{const a=i/16*Math.PI*2,l=3+((i*7)%5);return `<line x1="${27+Math.sin(a)*7}" y1="${14-Math.cos(a)*7}" x2="${27+Math.sin(a)*(7+l)}" y2="${14-Math.cos(a)*(7+l)}" stroke="${c}" stroke-width="2" stroke-linecap="round"/>`}).join('')}</svg>`;
+}
+
+function renderProject() {
+  const p = S.p;
+  $('#timeline').max = Math.max(1, Math.floor(p.total || 1));
+  $('#compareStatus').textContent = `A ${p.compareSlots?.a ? '✓' : '–'} · B ${p.compareSlots?.b ? '✓' : '–'}`;
+  $('#fTitle').value = p.title; $('#fChannel').value = p.channel || '';
+  syncControls();
+  $('#centerImageThumb').classList.toggle('hidden', !p.centerImageUrl);
+  if (p.centerImageUrl) $('#centerImageThumb').src = p.centerImageUrl;
+  setCenterPhoto(p.centerImageUrl);
+  renderCenterVisualOptions();
+  $('#ovChannel').textContent = S.channels.find((c) => c.id === p.channel)?.name || p.channel || '—';
+  $('#introChannel').textContent = $('#ovChannel').textContent;
+  $('#introBox').classList.toggle('hidden', !p.introInfo);
+  $('#dropIntro').innerHTML = p.introInfo ? `Trocar a intro deste canal (${esc(p.introInfo.name)})<br><small>arraste ou clique — vídeo com fundo verde ou azul</small>` : 'Este canal ainda não tem intro.<br><small>Arraste aqui o vídeo com fundo verde (MP4, MOV, WebM ou MKV), ou clique para escolher</small>';
+  introFrame();
+  $('#ovThumb').classList.toggle('hidden', !p.overlayUrl); if (p.overlayUrl) $('#ovThumb').src = p.overlayUrl;
+  $('#dropOv').innerHTML = p.overlayUrl ? 'Trocar a imagem do lembrete deste canal<br><small>arraste ou clique — PNG transparente ou GIF</small>' : 'Este canal ainda não tem lembrete.<br><small>Arraste aqui o PNG (fundo transparente) ou GIF animado, ou clique para escolher</small>';
+  renderBg(); renderVisualLibrary(); renderTracks(); renderAmbience(); showTab(); updateReady(); renderPublish(); checkGlyphs(); renderImport();
+}
+// Settings → controls only (cheap): used while dragging in the preview and after style changes.
+function syncControls() {
+  const p = S.p;
+  for (const el of $$('[data-k]')) {
+    const v = getK(p.settings, el.dataset.k);
+    if (el.tagName === 'SELECT' && el.dataset.k.endsWith('.font')) { setFontValue(el, v ?? inherited(el.dataset.k)); continue; }
+    if (v == null && /\.(size|color)$/.test(el.dataset.k)) { el.value = inherited(el.dataset.k) ?? (el.type === 'color' ? '#ffffff' : ''); continue; }
+    if (el.type === 'checkbox') el.checked = el.dataset.k === 'visualizer.enabled' ? v !== false : !!v;
+    else if (el.type === 'color') el.value = v || '#ffffff';
+    else el.value = v ?? (el.tagName === 'SELECT' ? el.options[0]?.value ?? '' : '');
+  }
+  const viz = p.settings.visualizer;
+  $('#useColor2').checked = !!viz.color2;
+  $('#anchorCenter').checked = viz.anchor === 'center';
+  $$('#styles button').forEach((b) => b.classList.toggle('on', b.dataset.style === viz.preset));
+  $('#stageHint').textContent = DRAWN_STYLES.some(([id]) => id === viz.preset)
+    ? 'Prévia ao vivo. Toque uma música (▶ na aba Músicas) para ver o visualizer reagir. Gere a prévia de 20 s para conferir o resultado final.'
+    : `Estilo "${viz.preset}" (antigo) não tem prévia ao vivo — escolha um estilo desenhado ou gere a prévia de 20 s.`;
+  syncOutputs(); syncVisibility();
+}
+// subtitle/label without their own font/size/color use the parent block's
+function inherited(k) {
+  const row = $(`.fontrow[data-font="${k.replace(/\.[^.]+$/, '')}"]`);
+  const parent = row?.dataset.parent;
+  return parent ? getK(S.p.settings, parent + k.slice(k.lastIndexOf('.'))) : undefined;
+}
+function syncOutputs() {
+  for (const el of $$('.sl input[type=range]')) {
+    const o = el.nextElementSibling; const v = Number(el.value);
+    o.textContent = o.dataset.fmt === 'min' ? `${v / 60} min` : o.dataset.fmt === 'time' ? fmt(v)
+      : (Number.isInteger(v) ? v : v.toFixed(2)) + (o.dataset.unit || '');
+  }
+  const ov = S.p.settings.overlay, el = $('#ovSchedule');
+  if (el && ov) {
+    const times = [];
+    for (let a = ov.first; a + ov.duration <= (S.p.total || 0) && times.length < 50; a += ov.every) times.push(fmt(a));
+    el.textContent = !S.p.overlayUrl ? 'Nenhuma imagem no canal ainda.' : times.length ? `Aparece ${times.length}× neste vídeo: ${times.join(', ')}` : 'Adicione músicas para ver quando aparece.';
+  }
+}
+function syncVisibility() {
+  const s = S.p.settings, viz = s.visualizer;
+  $$('[data-loop-fade]').forEach((e) => e.classList.toggle('hidden', s.loopTransition === 'cut'));
+  $$('[data-image-loop]').forEach((e) => e.classList.toggle('hidden', !(s.loopTransition === 'fade-black' && S.p.background?.isImage)));
+  $('[data-k="visualizer.height"]').max = RADIAL_STYLES.includes(viz.preset) ? 500 : 1080;
+  $('#vizOpts').classList.toggle('hidden', viz.enabled === false);
+  $('#color2').classList.toggle('hidden', !viz.color2); $('#color2l').classList.toggle('hidden', !viz.color2);
+  $$('[data-only]').forEach((e) => e.classList.toggle('hidden', e.dataset.only !== viz.preset));
+  $$('[data-not]').forEach((e) => e.classList.toggle('hidden', e.dataset.not === viz.preset));
+  $$('[data-radial]').forEach((e) => e.classList.toggle('hidden', !RADIAL_STYLES.includes(viz.preset)));
+  $$('[data-linear]').forEach((e) => e.classList.toggle('hidden', RADIAL_STYLES.includes(viz.preset)));
+  $$('[data-if]').forEach((e) => e.classList.toggle('hidden', !getK(s, e.dataset.if)));
+}
+function showTab() {
+  $$('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === S.tab));
+  $$('[data-pane]').forEach((e) => e.classList.toggle('hidden', e.dataset.pane !== S.tab));
+  const need = { bg: !S.p.background, tracks: !S.p.tracks.length, text: S.glyphIssue };
+  $$('#tabs button').forEach((b) => { b.querySelector('.dot')?.remove(); if (need[b.dataset.tab]) b.insertAdjacentHTML('beforeend', '<span class="dot"></span>'); });
+}
+
+// FFmpeg has no fallback font: a letter the chosen font lacks (ã, ç, ●…) becomes a box in the video.
+let glyphSeq = 0;
+async function checkGlyphs() {
+  const p = S.p, t = p?.settings.text || {}, seq = ++glyphSeq;
+  if (!p) return;
+  const titles = p.tracks.map((x) => x.title).join('');
+  const blocks = [
+    ['Título', t.title, (t.title?.text || '').replace('{title}', p.title)],
+    ['Subtítulo', t.title && { ...t.title, ...t.title.subtitle }, t.title?.subtitle?.text],
+    ['Nome da música', t.nowPlaying, (t.nowPlaying?.prefix || '') + titles],
+    ['Legenda da música', t.nowPlaying && { ...t.nowPlaying, ...t.nowPlaying.label }, t.nowPlaying?.label?.text],
+    ['Nome + progresso', t.trackProgress, titles],
+    ['Aviso', t.cta, t.cta?.text],
+    ['Marca do canal', t.watermark, t.watermark?.text],
+  ].filter(([, o, text]) => o?.enabled && o.font && text);
+  let missing;
+  try { ({ missing } = await api('/api/fonts/missing', { method: 'POST', body: { checks: blocks.map(([, o, text]) => ({ font: o.font, text })) } })); }
+  catch { return; } // an old server without the check: no warning
+  if (seq !== glyphSeq || !$('#glyphWarn')) return;
+  const bad = blocks.map(([label], i) => missing[i]?.length && `${label}: ${missing[i].join(' ')}`).filter(Boolean);
+  S.glyphIssue = bad.length > 0;
+  $('#glyphWarn').classList.toggle('hidden', !bad.length);
+  $('#glyphWarn').textContent = `⚠ A fonte escolhida não tem estas letras, e no vídeo elas saem como quadrados. ${bad.join(' · ')}. Troque a fonte na aba Textos ou mude o texto.`;
+  showTab();
+}
+
+let saveT = null, saving = null;
+function save() {
+  $('#saved').textContent = 'salvando…';
+  if (S.p.renderState?.status === 'fresh') S.p.renderState.status = 'stale';
+  updateReady();
+  clearTimeout(saveT); saveT = setTimeout(doSave, 600);
+}
+async function doSave() {
+  saveT = null;
+  const body = { title: S.p.title, settings: S.p.settings };
+  saving = api('/api/projects/' + S.cur, { method: 'PUT', body }).then((p) => {
+    if (S.p && p.name === S.p.name) { S.p.renderState = p.renderState; S.p.estimate = p.estimate; updateReady(); }
+    $('#saved') && ($('#saved').textContent = 'salvo ✓');
+    const it = S.projects.find((x) => x.name === S.cur); if (it && it.title !== S.p.title) { it.title = S.p.title; renderList(); }
+  }).catch((e) => toast('Erro ao salvar: ' + e.message, true));
+  await saving;
+}
+async function flush() { if (saveT) { clearTimeout(saveT); await doSave(); } else await saving; }
+
+// ---------- background ----------
+async function loadVisuals() {
+  S.visuals = (await api('/api/visuals')).visuals || [];
+  renderVisualLibrary(); renderCenterVisualOptions();
+}
+function renderCenterVisualOptions() {
+  const sel = $('#centerVisualSelect'); if (!sel) return;
+  sel.replaceChildren(new Option('Escolha uma imagem…', ''));
+  for (const item of S.visuals.filter((v) => v.image)) sel.add(new Option(item.name.replace(/-[a-f0-9]{12}(\.[^.]+)$/i, '$1'), item.name));
+  const current = S.p?.settings.visualizer.centerImage;
+  if (current && current.replaceAll('\\', '/').includes('/visuals/')) sel.value = current.split(/[\\/]/).at(-1);
+}
+function renderVisualLibrary() {
+  const box = $('#visualLibrary'); if (!box) return;
+  box.replaceChildren();
+  if (!S.visuals.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = 'Nenhum visual importado ainda.'; box.append(p); return; }
+  for (const item of S.visuals) {
+    const button = document.createElement('button'); button.className = 'visual-item'; button.title = item.name;
+    button.classList.toggle('on', S.p?.background?.file === item.name && !S.p.background.inProject);
+    if (item.thumb) { const img = document.createElement('img'); img.src = item.thumb; img.alt = ''; img.loading = 'lazy'; button.append(img); }
+    else { const ph = document.createElement('div'); ph.className = 'video-ph'; ph.textContent = '▶'; button.append(ph); }
+    const label = document.createElement('span'); label.textContent = item.name.replace(/-[a-f0-9]{12}(\.[^.]+)$/i, '$1'); button.append(label);
+    button.onclick = async () => {
+      try { await flush(); S.p = await api(`/api/projects/${S.cur}/visual`, { method: 'POST', body: { name: item.name } }); renderProject(); refreshState(); toast('Visual aplicado como fundo ✓'); }
+      catch (e) { toast(e.message, true); }
+    };
+    box.append(button);
+  }
+}
+async function importVisuals(files) {
+  files = files.filter((f) => /\.(png|jpe?g|webp|bmp|mp4|mov|webm|mkv)$/i.test(f.name));
+  if (!files.length) return toast('Escolha imagens ou vídeos compatíveis.', true);
+  const drop = $('#dropVisuals'), original = drop.innerHTML;
+  const errors = []; let added = 0;
+  try {
+    for (const [i, file] of files.entries()) {
+      drop.textContent = `Importando ${i + 1}/${files.length}: ${file.name}`;
+      try {
+        const r = await fetch('/api/visuals?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
+        const j = await r.json(); if (!r.ok) throw new Error(j.error);
+        S.visuals = j.visuals; added++;
+      } catch (e) { errors.push(`${file.name}: ${e.message}`); }
+    }
+  } finally { drop.innerHTML = original; renderVisualLibrary(); }
+  toast(`${added} visual(is) adicionado(s) à biblioteca. Clique em um para usar neste projeto.${errors.length ? ' Erros: ' + errors.join('; ') : ''}`, !!errors.length);
+}
+function renderBg() {
+  const bg = S.p.background, v = $('#bgVideo'), im = $('#bgImage');
+  $('#noBg').classList.toggle('hidden', !!bg);
+  v.classList.toggle('hidden', !bg || bg.isImage); im.classList.toggle('hidden', !bg || !bg.isImage);
+  if (bg && !bg.isImage && v.dataset.src !== bg.url) { v.dataset.src = bg.url; v.src = bg.url; v.play().catch(() => {}); }
+  if (bg?.isImage && im.dataset.src !== bg.url) { im.dataset.src = bg.url; im.src = bg.url; }
+  if (!bg) { v.removeAttribute('src'); v.dataset.src = ''; }
+  $('#bgName').textContent = bg ? `Fundo atual: ${bg.file}` : 'Nenhum fundo escolhido ainda.';
+}
+
+function dropZone(el, onFiles) {
+  el.ondragover = (e) => { e.preventDefault(); el.classList.add('over'); };
+  el.ondragleave = () => el.classList.remove('over');
+  el.ondrop = (e) => { e.preventDefault(); el.classList.remove('over'); onFiles([...e.dataTransfer.files]); };
+}
+function upload(kind, file, label) {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    const project = S.cur;
+    if (!project) { toast('Selecione um vídeo antes de enviar arquivos.', true); return resolve(false); }
+    const endpoint = `/api/projects/${encodeURIComponent(project)}/upload?kind=${encodeURIComponent(kind)}&name=${encodeURIComponent(file.name)}`;
+    xhr.open('POST', endpoint);
+    const drop = kind === 'background' ? $('#dropBg') : $('#dropTracks');
+    const orig = drop.innerHTML;
+    xhr.upload.onprogress = (e) => { drop.textContent = `${label || 'Enviando'} ${file.name} — ${Math.round(e.loaded / e.total * 100)}%`; };
+    xhr.onload = () => {
+      drop.innerHTML = orig;
+      let j; try { j = JSON.parse(xhr.responseText || '{}'); } catch { j = {}; }
+      if (xhr.status !== 200) {
+        const detail = j.error || `HTTP ${xhr.status || 'sem resposta'}`;
+        console.error('Falha no envio', { endpoint, status: xhr.status, detail });
+        toast(detail === 'rota desconhecida'
+          ? 'O servidor aberto não reconhece a rota de envio. Feche e abra o Music Studio para carregar a versão atual.'
+          : `Falha ao enviar ${file.name}: ${detail}`, true);
+        return resolve(false);
+      }
+      if (S.cur === project) { S.p = j; renderProject(); refreshState(); }
+      resolve(true);
+    };
+    xhr.onerror = () => { drop.innerHTML = orig; toast(`Sem conexão ao enviar ${file.name}. Confira se o Music Studio está aberto.`, true); resolve(false); };
+    xhr.send(file);
+  });
+}
+async function uploadMany(files) {
+  files = files.filter((f) => /\.(m4a|mp3|wav|flac|aac|ogg|opus)$/i.test(f.name)).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  if (!files.length) return toast('nenhum arquivo de áudio', true);
+  try { await flush(); } catch (e) { return toast('Salve o projeto antes de importar: ' + e.message, true); }
+  for (const [i, f] of files.entries()) if (!await upload('track', f, `(${i + 1}/${files.length})`)) break;
+  $('#fileTracks').value = ''; // lets the same file be selected again after a failed attempt
+}
+
+async function uploadAmbience(file) {
+  if (!/\.(mp3|wav|flac|m4a|aac|ogg|opus)$/i.test(file.name)) return toast('Escolha um arquivo de áudio (mp3, wav, m4a, flac, ogg ou opus).', true);
+  const drop = $('#dropAmbience'), old = drop.textContent;
+  try {
+    await flush(); stopAudio(); drop.textContent = `Enviando ${file.name}…`;
+    const r = await fetch(`/api/projects/${encodeURIComponent(S.cur)}/upload?kind=ambience&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    S.p = j; renderProject(); toast('Som ambiente adicionado ✓');
+  } catch (e) { drop.textContent = old; toast('Erro no som ambiente: ' + e.message, true); }
+}
+function renderAmbience() {
+  const info = S.p.ambience, amb = S.p.settings.audio?.ambience;
+  $('#ambName').textContent = info ? `${info.name}${!info.url ? ' · prévia no player indisponível' : ''}` : 'Nenhum som ambiente';
+  $('#ambRemove').classList.toggle('hidden', !info);
+  $('#ambEnabled').disabled = !info;
+  $('#dropAmbience').textContent = info ? 'Trocar som ambiente — clique ou arraste outro arquivo' : 'Clique ou arraste um som ambiente (mp3, wav, m4a…)';
+  if (!info && amb?.enabled) { amb.enabled = false; $('#ambEnabled').checked = false; }
+  syncAmbiencePlayer();
+}
+function syncAmbiencePlayer() {
+  const a = $('#ambPlayer'); if (!a) return;
+  const amb = S.p?.settings.audio?.ambience, url = S.p?.ambience?.url;
+  const db = Number(amb?.volumeDb);
+  a.volume = Math.pow(10, Math.max(-40, Math.min(0, Number.isFinite(db) ? db : -22)) / 20);
+  if (!amb?.file || amb.enabled === false || !url) { a.pause(); a.removeAttribute('src'); a.load(); return; }
+  if (a.getAttribute('src') !== url) a.src = url;
+  if (playing && !$('#player').paused) a.play().catch(() => {});
+}
+
+// ---------- tracks ----------
+let dragFrom = null, trackBusy = false;
+// Track changes run one at a time; the list is locked meanwhile and the preview player lets go of the file.
+async function trackCall(fn) {
+  if (trackBusy) return toast('espere a alteração anterior terminar', true);
+  trackBusy = true; $('#tracks')?.classList.add('busy');
+  const a = $('#player'); if (a && playing) { stopAudio(); a.removeAttribute('src'); a.load(); }
+  try { S.p = await fn(); renderProject(); refreshState(); return true; }
+  catch (e) { toast(e.message, true); try { S.p = await api('/api/projects/' + S.cur); renderProject(); } catch {} return false; }
+  finally { trackBusy = false; $('#tracks')?.classList.remove('busy'); }
+}
+function renderTracks() {
+  const p = S.p, el = $('#tracks'); el.innerHTML = '';
+  // Imported playlists live in their own folder: a header per playlist, removable in one click.
+  const grouped = p.tracks.some((t) => t.playlist);
+  let group;
+  p.tracks.forEach((t, i) => {
+    if (grouped && t.playlist !== group) {
+      group = t.playlist;
+      const songs = p.tracks.filter((x) => x.playlist === group);
+      const h = document.createElement('div'); h.className = 'plhead';
+      const label = document.createElement('span');
+      label.textContent = group ? `📁 ${group} ` : 'Músicas avulsas ';
+      label.title = group ? `pasta tracks/${group} — clique para renomear` : 'arquivos fora das pastas de playlist';
+      if (group) {
+        const old = group;
+        label.classList.add('rename');
+        label.onclick = async () => {
+          const to = prompt('Novo nome da playlist:', old); if (!to?.trim() || to.trim() === old) return;
+          if (await trackCall(() => api(`/api/projects/${S.cur}/playlists/${encodeURIComponent(old)}`, { method: 'POST', body: { name: to } }))) toast('Playlist renomeada ✓');
+        };
+      }
+      label.insertAdjacentHTML('beforeend', `<small>· ${songs.length} músicas · ${fmt(songs.reduce((a, x) => a + x.duration, 0))}</small>`);
+      h.append(label);
+      if (group) {
+        const name = group, rm = document.createElement('button');
+        rm.className = 'small ghost'; rm.textContent = 'Remover playlist';
+        rm.onclick = async () => {
+          if (!confirm(`Tirar as ${songs.length} músicas da playlist "${name}" deste vídeo?\n\nDá para desfazer logo em seguida. Para apagar de vez e liberar espaço, use "Limpar cache, prévias e lixeira" em Armazenamento.`)) return;
+          const ok = await trackCall(() => api(`/api/projects/${S.cur}/playlists/${encodeURIComponent(name)}`, { method: 'DELETE' }));
+          if (ok) toast(`Playlist "${name}" removida (${songs.length} músicas)`, false, { label: 'Desfazer', fn: () => trackCall(() => api(`/api/projects/${S.cur}/tracks/restore`, { method: 'POST', body: {} })) });
+        };
+        h.append(rm);
+      }
+      el.append(h);
+    }
+    const r = document.createElement('div'); r.className = 'trk';
+    r.innerHTML = `<span class="h" title="arraste para mudar a ordem">⋮⋮</span><span class="n">${i + 1}</span><button class="icon" title="ouvir">▶</button><input type="text" title="clique para renomear — Enter salva, Esc cancela"><span class="d">${fmt(t.duration)}</span><button class="icon" title="remover">✕</button>`;
+    const inp = $('input', r); inp.value = t.title;
+    // Rename: Enter or leaving the field saves; Esc or an empty name cancels.
+    inp.onkeydown = (e) => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = t.title; inp.blur(); } };
+    inp.onblur = () => {
+      const v = inp.value.trim();
+      if (!v || v === t.title) { inp.value = t.title; return; }
+      reorder(p.tracks.map((x) => x.file), { [t.file]: v });
+    };
+    const [play, del] = $$('button', r);
+    if (playing === t.url) play.classList.add('playing'), (play.textContent = '❚❚');
+    play.onclick = () => togglePlay(t);
+    del.onclick = async () => {
+      const ok = await trackCall(() => api(`/api/projects/${S.cur}/tracks/${encodeURIComponent(t.file)}`, { method: 'DELETE' }));
+      if (ok) toast(`"${t.title}" removida`, false, { label: 'Desfazer', fn: () => trackCall(() => api(`/api/projects/${S.cur}/tracks/restore`, { method: 'POST', body: { index: i } })) });
+    };
+    // Only the ⋮⋮ handle starts a drag, so selecting text in the name field works normally.
+    const h = $('.h', r);
+    h.onmousedown = () => (r.draggable = true);
+    r.onmouseup = () => (r.draggable = false);
+    r.ondragstart = (e) => { if (trackBusy) return e.preventDefault(); dragFrom = i; r.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
+    r.ondragend = () => { r.classList.remove('dragging'); r.draggable = false; };
+    r.ondragover = (e) => { if (dragFrom == null) return; e.preventDefault(); r.classList.add('over'); };
+    r.ondragleave = () => r.classList.remove('over');
+    r.ondrop = (e) => { e.preventDefault(); r.classList.remove('over'); if (dragFrom == null || dragFrom === i) return;
+      const order = p.tracks.map((x) => x.file); const [m] = order.splice(dragFrom, 1); order.splice(i, 0, m);
+      const from = p.tracks[dragFrom].playlist || '', to = p.tracks[i].playlist || '';
+      dragFrom = null; reorder(order, undefined, grouped && from !== to ? { [m]: to } : undefined); };
+    el.append(r);
+  });
+  const goal = (p.audio.minDurationMin || 60) * 60;
+  $('#totalText').textContent = p.tracks.length ? `${p.tracks.length} músicas · ${p.totalText}` : 'Nenhuma música ainda';
+  $('#btnClearTracks').classList.toggle('hidden', !p.tracks.length);
+  $('#btnClearTracks').onclick = async () => {
+    const n = p.tracks.length;
+    if (!confirm(`Tirar as ${n} músicas deste vídeo?\n\nDá para desfazer logo em seguida. Para apagar de vez e liberar espaço, use "Limpar cache, prévias e lixeira" em Armazenamento.`)) return;
+    const ok = await trackCall(() => api(`/api/projects/${S.cur}/tracks`, { method: 'DELETE' }));
+    if (ok) toast(`${n} músicas removidas`, false, { label: 'Desfazer', fn: () => trackCall(() => api(`/api/projects/${S.cur}/tracks/restore`, { method: 'POST', body: {} })) });
+  };
+  $('#totalGoal').textContent = p.total >= goal ? `✓ passou de ${fmt(goal)}` : `faltam ~${fmt(goal - p.total)} p/ ${fmt(goal)}`;
+  $('#meter').classList.toggle('warn', p.total < goal);
+  $('#meter > div').style.width = Math.min(100, (p.total / goal) * 100) + '%';
+}
+const reorder = (order, titles, moves) => trackCall(() => api(`/api/projects/${S.cur}/tracks`, { method: 'POST', body: { order, titles, moves } }));
+
+// ---------- audio + live visualizer ----------
+let actx, analyser, srcNode, playing = null, nowTitle = '';
+function stopAudio() { const a = $('#player'), amb = $('#ambPlayer'); if (a) a.pause(); if (amb) { amb.pause(); amb.removeAttribute('src'); amb.load(); } playing = null; }
+function togglePlay(t) {
+  const a = $('#player');
+  if (!actx) {
+    actx = new AudioContext(); analyser = actx.createAnalyser(); analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0;
+  }
+  if (srcNode?.mediaElement !== a) { srcNode = actx.createMediaElementSource(a); srcNode.connect(analyser); analyser.connect(actx.destination); }
+  actx.resume();
+  if (playing === t.url) stopAudio();
+  else { a.src = t.url; a.currentTime = Math.min(30, t.duration / 4); a.play(); playing = t.url; nowTitle = t.title; syncAmbiencePlayer(); }
+  renderTracks();
+}
+function trackAtTime(sec) {
+  const list = S.p?.tracks || [], xf = list.length > 1 ? (S.p.settings.audio?.crossfade ?? S.p.audio?.crossfade ?? 0) : 0;
+  let start = 0;
+  for (let i = 0; i < list.length; i++) {
+    const from = start + (i ? xf : 0);
+    const nextStart = start + list[i].duration - xf;
+    const end = i + 1 < list.length ? nextStart + xf : (S.p.total || start + list[i].duration);
+    if (sec < end || i === list.length - 1) return { track: list[i], fraction: Math.max(0, Math.min(1, (sec - from) / Math.max(0.1, end - from))) };
+    start = nextStart;
+  }
+  return null;
+}
+
+const cv = () => $('#cv');
+let projectOpenedAt = performance.now();
+let introStart = performance.now();
+function introFx(anim, duration, now) {
+  if (!anim || anim === 'none') return { dx: 0, dy: 0, alpha: 1 };
+  const k = Math.max(0, Math.min(1, (now - introStart) / (1000 * (duration || 1))));
+  const off = 1 - k;
+  return { dx: anim === 'slide-left' ? -90 * off : anim === 'slide-right' ? 90 * off : 0,
+    dy: anim === 'rise' ? 50 * off : 0, alpha: k };
+}
+let level = new Float32Array(0), peak = 1e-4, lastT = performance.now(), freq = null;
+function computeLevels(s, bands, dt) {
+  if (level.length !== bands) level = new Float32Array(bands);
+  const target = new Float32Array(bands);
+  const a = $('#player');
+  const live = analyser && playing && a && !a.paused;
+  if (live) {
+    const N = analyser.fftSize, SR = actx.sampleRate;
+    freq ??= new Float32Array(analyser.frequencyBinCount);
+    if (freq.length !== analyser.frequencyBinCount) freq = new Float32Array(analyser.frequencyBinCount);
+    analyser.getFloatFrequencyData(freq);
+    let framePeak = 0;
+    for (let b = 0; b < bands; b++) {
+      const e0 = (s.minFreq * Math.pow(s.maxFreq / s.minFreq, b / bands) * N) / SR;
+      const e1 = (s.minFreq * Math.pow(s.maxFreq / s.minFreq, (b + 1) / bands) * N) / SR;
+      const lo = Math.floor(e0), hi = Math.max(lo, Math.ceil(e1) - 1);
+      let m = 0;
+      for (let k = lo; k <= hi && k < freq.length; k++) m = Math.max(m, Math.pow(10, freq[k] / 20));
+      const fc = Math.sqrt(e0 * e1) * SR / N;
+      m *= Math.pow(fc / 250, s.tilt ?? 0);
+      target[b] = m; framePeak = Math.max(framePeak, m);
+    }
+    peak = framePeak > peak ? framePeak : Math.max(1e-6, peak * Math.pow(0.5, dt / 8));
+    for (let b = 0; b < bands; b++) {
+      const db = 20 * Math.log10(target[b] / peak + 1e-9);
+      const v = Math.max(0, Math.min(1, (db + 42) / 42)); target[b] = v * v;
+    }
+  } else {
+    // idle: a gentle fake spectrum so the shape is visible while adjusting
+    const t = performance.now() / 1000;
+    for (let b = 0; b < bands; b++) target[b] = Math.max(0, (0.55 - b / bands * 0.35) * (0.6 + 0.4 * Math.sin(t * 1.7 + b * 0.55) * Math.sin(t * 0.9 + b * 0.21)));
+  }
+  const k = (c) => 1 - Math.pow(1 - c, dt * 30);
+  for (let b = 0; b < bands; b++) level[b] += (target[b] - level[b]) * k(target[b] > level[b] ? s.attack : s.release);
+  return level;
+}
+function mirrored(lv, mirror) {
+  if (!mirror) return lv;
+  const n = lv.length, out = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) { out[n - 1 - i] = lv[i]; out[n + i] = lv[i]; }
+  return out;
+}
+function curveAt(v, x) {
+  const i = Math.floor(x), t = x - i, p = (k) => v[Math.max(0, Math.min(v.length - 1, k))];
+  const p0 = p(i - 1), p1 = p(i), p2 = p(i + 1), p3 = p(i + 2);
+  return Math.max(0, 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t));
+}
+const mask = document.createElement('canvas');
+const centerPhoto = new Image();
+let centerPhotoUrl = '';
+function setCenterPhoto(url) {
+  if ((url || '') === centerPhotoUrl) return;
+  centerPhotoUrl = url || '';
+  if (centerPhotoUrl) centerPhoto.src = centerPhotoUrl;
+  else centerPhoto.removeAttribute('src');
+}
+function drawShape(s, lv) {
+  const preset = STYLE_BASE[s.preset] || s.preset;
+  const ring = RADIAL_STYLES.includes(s.preset);
+  const sw = ring ? 2 * (s.radius + s.ringGap + s.height) : s.width, sh = ring ? sw : s.height;
+  mask.width = sw; mask.height = sh;
+  const c = mask.getContext('2d');
+  c.clearRect(0, 0, sw, sh); c.strokeStyle = c.fillStyle = '#fff'; c.lineCap = 'round';
+  const line = (x1, y1, x2, y2, r, a = 1) => { c.globalAlpha = a; c.lineWidth = 2 * r; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2 + 0.01, y2); c.stroke(); };
+  if (preset === 'capsules') {
+    const v = mirrored(lv, s.mirror), slot = sw / v.length, r = Math.max(1, slot * (1 - s.gap) / 2);
+    const maxLen = s.anchor === 'center' ? sh / 2 - r - 1 : sh - 2 * r - 1;
+    v.forEach((x, i) => { const cx = slot * (i + .5), len = x * maxLen;
+      if (s.anchor === 'center') line(cx, sh / 2 - len, cx, sh / 2 + len, r); else line(cx, sh - r - 1 - len, cx, sh - r - 1, r); });
+  } else if (preset === 'blocks') {
+    const v = mirrored(lv, s.mirror), slot = sw / v.length, bw = Math.max(1, Math.floor(slot * (1 - s.gap)));
+    v.forEach((level, i) => c.fillRect(Math.floor(slot * (i + .5) - bw / 2), Math.floor((1 - level) * (sh - 2)), bw, sh));
+  } else if (preset === 'dots') {
+    const v = mirrored(lv, s.mirror), slot = sw / v.length, r = Math.max(1, slot * (1 - s.gap) / 2);
+    const step = 2 * r + Math.max(2, slot * s.gap), maxDots = Math.floor((sh - 2) / step);
+    v.forEach((x, i) => { const cx = slot * (i + .5), lit = 1 + x * (maxDots - 1);
+      for (let d = 0; d < Math.ceil(lit); d++) { const cy = sh - 1 - r - d * step; line(cx, cy, cx, cy, r, Math.min(1, lit - d)); } });
+  } else if (preset === 'silk') {
+    const v = mirrored(lv, s.mirror), mid = sh / 2, amp = mid - s.lineWidth - 2, scale = (v.length - 1) / (sw - 1);
+    const A = new Float32Array(sw);
+    for (let x = 0; x < sw; x++) A[x] = curveAt(v, x * scale) * amp * Math.min(1, Math.sin(Math.PI * x / (sw - 1)) * 1.6) + 1;
+    c.globalAlpha = s.fillAlpha; c.beginPath(); c.moveTo(0, mid - A[0]);
+    for (let x = 1; x < sw; x++) c.lineTo(x, mid - A[x]);
+    for (let x = sw - 1; x >= 0; x--) c.lineTo(x, mid + A[x]);
+    c.fill(); c.globalAlpha = 1; c.lineWidth = s.lineWidth; c.lineJoin = 'round';
+    for (const sg of [-1, 1]) { c.beginPath(); c.moveTo(0, mid + sg * A[0]); for (let x = 4; x < sw; x += 4) c.lineTo(x, mid + sg * A[x]); c.stroke(); }
+  } else if (preset === 'mountains') {
+    const v = mirrored(lv, s.mirror), scale = (v.length - 1) / Math.max(1, sw - 1), base = sh - 2, amp = Math.max(1, sh - s.lineWidth - 5);
+    const A = new Float32Array(sw);
+    for (let x = 0; x < sw; x++) A[x] = base - curveAt(v, x * scale) * amp;
+    c.globalAlpha = s.fillAlpha; c.beginPath(); c.moveTo(0, base);
+    for (let x = 0; x < sw; x++) c.lineTo(x, A[x]);
+    c.lineTo(sw - 1, sh); c.lineTo(0, sh); c.fill();
+    c.globalAlpha = 1; c.lineWidth = s.lineWidth; c.lineJoin = 'round'; c.beginPath(); c.moveTo(0, A[0]);
+    for (let x = 4; x < sw; x += 4) c.lineTo(x, A[x]); c.lineTo(sw - 1, A[sw - 1]); c.stroke();
+  } else if (preset === 'needles') {
+    const v = mirrored(lv, s.mirror), slot = sw / v.length;
+    const r = Math.max(.8, Math.min(s.lineWidth / 2, slot * (1 - s.gap) / 4));
+    const dot = Math.max(r * 1.6, Math.min(5, slot * (1 - s.gap) / 3));
+    v.forEach((level, i) => { const x = slot * (i + .5), top = sh - 3 - level * (sh - 6 - dot);
+      line(x, top, x, sh - 3, r, .65); line(x, top, x, top, dot); });
+  } else if (preset === 'ribbon') {
+    const v = mirrored(lv, s.mirror), mid = sh / 2, amp = Math.max(1, mid - s.lineWidth - 3), scale = (v.length - 1) / Math.max(1, sw - 1);
+    const A = new Float32Array(sw);
+    for (let x = 0; x < sw; x++) A[x] = curveAt(v, x * scale) * amp * Math.min(1, Math.sin(Math.PI * x / Math.max(1, sw - 1)) * 1.6);
+    c.lineWidth = s.lineWidth; c.lineJoin = 'round';
+    for (const [factor, alpha] of [[1, 1], [.55, .65], [-.55, .65], [-1, 1]]) {
+      c.globalAlpha = alpha; c.beginPath(); c.moveTo(0, mid + A[0] * factor);
+      for (let x = 4; x < sw; x += 4) c.lineTo(x, mid + A[x] * factor);
+      c.lineTo(sw - 1, mid + A[sw - 1] * factor); c.stroke();
+    }
+  } else if (preset === 'zigzag') {
+    const v = mirrored(lv, s.mirror), mid = sh / 2, amp = mid - 3, slot = (sw - 1) / Math.max(1, v.length - 1);
+    v.forEach((level, i) => { if (i + 1 >= v.length) return;
+      line(i * slot, mid - level * amp, (i + 1) * slot, mid - v[i + 1] * amp, s.lineWidth / 2);
+      line(i * slot, mid + level * amp, (i + 1) * slot, mid + v[i + 1] * amp, s.lineWidth / 2, .55); });
+  } else if (preset === 'ring') {
+    const n = lv.length, cx = sw / 2, cy = sh / 2, r0 = s.radius + s.ringGap, maxLen = sw / 2 - r0 - 3, total = n * 2;
+    const r = Math.max(1, ((2 * Math.PI * r0) / total) * (1 - s.gap) / 2);
+    for (let i = 0; i < total; i++) {
+      const band = i < n ? i : total - 1 - i, th = ((i + .5) / total) * 2 * Math.PI, dx = Math.sin(th), dy = -Math.cos(th), len = lv[band] * maxLen;
+      line(cx + dx * (r0 + r), cy + dy * (r0 + r), cx + dx * (r0 + r + len), cy + dy * (r0 + r + len), r);
+    }
+  } else if (preset === 'orbit') {
+    const n = lv.length, total = n * 2, cx = sw / 2, cy = sh / 2, r0 = s.radius + s.ringGap, maxLen = sw / 2 - r0 - 10;
+    for (let i = 0; i < total; i++) {
+      const band = i < n ? i : total - 1 - i, th = (i + .5) / total * 2 * Math.PI, dx = Math.sin(th), dy = -Math.cos(th), v = lv[band], r = r0 + v * maxLen * .9;
+      line(cx + dx * r0, cy + dy * r0, cx + dx * r0, cy + dy * r0, 1.5, .3);
+      line(cx + dx * r, cy + dy * r, cx + dx * r, cy + dy * r, Math.max(2, Math.min(9, 2 + v * 7)));
+    }
+  } else if (preset === 'halo') {
+    const n = lv.length, total = n * 2, samples = Math.max(128, total * 5), v = new Float32Array(total);
+    for (let i = 0; i < total; i++) v[i] = lv[i < n ? i : total - 1 - i];
+    const cx = sw / 2, cy = sh / 2, r0 = s.radius + s.ringGap, maxLen = sw / 2 - r0 - 5;
+    c.lineWidth = s.lineWidth; c.lineJoin = 'round'; c.beginPath();
+    for (let i = 0; i <= samples; i++) {
+      const th = i / samples * 2 * Math.PI, r = r0 + curveAt(v, (i % samples) / samples * (total - 1)) * maxLen;
+      const x = cx + Math.sin(th) * r, y = cy - Math.cos(th) * r;
+      if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+    }
+    c.stroke(); c.globalAlpha = .35; c.lineWidth = 2; c.beginPath(); c.arc(cx, cy, r0, 0, 2 * Math.PI); c.stroke();
+  } else if (preset === 'petals') {
+    const n = lv.length, total = n * 2, cx = sw / 2, cy = sh / 2, r0 = s.radius + s.ringGap, maxLen = sw / 2 - r0 - 6;
+    for (let i = 0; i < total; i++) { const band = i < n ? i : total - 1 - i, th = (i + .5) / total * Math.PI * 2;
+      const dx = Math.sin(th), dy = -Math.cos(th), sx = Math.cos(th), sy = Math.sin(th);
+      const len = Math.max(3, lv[band] * maxLen), half = Math.max(2, Math.min(13, r0 * Math.PI / total));
+      const bx = cx + dx * r0, by = cy + dy * r0, tx = bx + dx * len, ty = by + dy * len;
+      line(bx + sx * half, by + sy * half, tx, ty, Math.max(1, s.lineWidth / 2), .8);
+      line(bx - sx * half, by - sy * half, tx, ty, Math.max(1, s.lineWidth / 2), .8); }
+  } else if (preset === 'radialDots') {
+    const n = lv.length, total = n * 2, cx = sw / 2, cy = sh / 2, r0 = s.radius + s.ringGap, maxLen = sw / 2 - r0 - 8;
+    for (let i = 0; i < total; i++) { const band = i < n ? i : total - 1 - i, th = (i + .5) / total * Math.PI * 2;
+      const dx = Math.sin(th), dy = -Math.cos(th), power = lv[band], r = r0 + 4 + power * maxLen;
+      line(cx + dx * r0, cy + dy * r0, cx + dx * r0, cy + dy * r0, 2, .4);
+      line(cx + dx * r, cy + dy * r, cx + dx * r, cy + dy * r, Math.max(2, Math.min(9, 2 + power * 6))); }
+  } else if (preset === 'sunburst') {
+    const n = lv.length, total = n * 2, cx = sw / 2, cy = sh / 2, r0 = s.radius + s.ringGap, maxLen = sw / 2 - r0 - 7;
+    const width = Math.max(.8, Math.min(s.lineWidth / 2, Math.PI * r0 * (1 - s.gap) / total));
+    for (let i = 0; i < total; i++) {
+      const band = i < n ? i : total - 1 - i, th = (i + .5) / total * 2 * Math.PI, dx = Math.sin(th), dy = -Math.cos(th), end = r0 + lv[band] * maxLen;
+      line(cx + dx * r0, cy + dy * r0, cx + dx * end, cy + dy * end, width, .7);
+      line(cx + dx * end, cy + dy * end, cx + dx * end, cy + dy * end, width * 2);
+    }
+  }
+  // color through the mask
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-in';
+  if (s.color2) { const g = c.createLinearGradient(0, sh, 0, 0); g.addColorStop(0, s.color2); g.addColorStop(1, s.color); c.fillStyle = g; }
+  else c.fillStyle = s.color;
+  c.fillRect(0, 0, sw, sh); c.globalCompositeOperation = 'source-over';
+  return { sw, sh, ring };
+}
+
+const fontFamilies = {};
+const fontLoading = {};
+async function ensureFont(file) {
+  if (fontFamilies[file]) return fontFamilies[file];
+  fontLoading[file] ??= (async () => {
+    const fam = 'f' + Object.keys(fontFamilies).length + '_' + Math.random().toString(36).slice(2, 7);
+    const ff = new FontFace(fam, `url('/font?f=${encodeURIComponent(file)}')`);
+    await ff.load(); document.fonts.add(ff); fontFamilies[file] = fam;
+    return fam;
+  })().finally(() => { delete fontLoading[file]; });
+  return fontLoading[file];
+}
+async function loadFonts() {
+  const t = S.p.settings.text || {};
+  const files = [t.title, t.title?.subtitle, t.nowPlaying, t.nowPlaying?.label, t.trackProgress, t.cta, t.watermark].map((o) => o?.font).filter(Boolean);
+  for (const file of files) try { await ensureFont(file); } catch { /* fallback font */ }
+}
+function evalPos(expr, vars) {
+  let e = String(expr);
+  for (const [k, v] of Object.entries(vars).sort((a, b) => b[0].length - a[0].length)) e = e.replaceAll(k, `(${v})`);
+  return /^[\d+\-*/(). ]+$/.test(e) ? Function(`return ${e}`)() : 0;
+}
+function drawText(c, text, o) {
+  if (!text) return;
+  c.save();
+  c.font = `${o.size}px ${fontFamilies[o.font] || 'Georgia'}, Georgia, serif`;
+  c.textBaseline = 'top';
+  const tw = c.measureText(text).width;
+  const x = evalPos(o.x, { text_w: tw, text_h: o.size, w: 1920, h: 1080, tw, th: o.size });
+  const y = evalPos(o.y, { text_w: tw, text_h: o.size, w: 1920, h: 1080, tw, th: o.size });
+  c.globalAlpha = o.opacity ?? 1;
+  if (o.shadow) { c.fillStyle = 'rgba(0,0,0,.45)'; c.fillText(text, x + 2, y + 2); }
+  c.fillStyle = o.color || '#fff'; c.fillText(text, x, y);
+  c.restore();
+  return { x, y, w: tw, h: o.size * 1.15 };
+}
+
+// ---------- drag to position (texts, reminder image, visualizer) ----------
+// Each frame records the drawn boxes; a drag moves a whole group (title + subtitle, name + label).
+const GROUPS = {
+  title: { label: 'Título', items: ['text.title', 'text.title.subtitle'] },
+  np: { label: 'Nome da música', items: ['text.nowPlaying', 'text.nowPlaying.label'] },
+  progress: { label: 'Nome + progresso', items: ['text.trackProgress'] },
+  cta: { label: 'Like / Comment / Subscribe', items: ['text.cta'] },
+  wm: { label: 'Marca do canal', items: ['text.watermark'] },
+  ov: { label: 'Lembrete', items: ['overlay'] },
+  viz: { label: 'Visualizer', items: ['visualizer'] },
+};
+let hits = {}, hover = null, drag = null;
+function addHit(group, key, b) {
+  if (!b) return;
+  const g = (hits[group] ??= { items: {}, x: Infinity, y: Infinity, r: -Infinity, b: -Infinity });
+  g.items[key] = b;
+  g.x = Math.min(g.x, b.x); g.y = Math.min(g.y, b.y); g.r = Math.max(g.r, b.x + b.w); g.b = Math.max(g.b, b.y + b.h);
+}
+function stagePoint(e) {
+  const r = cv().getBoundingClientRect();
+  const scale = Math.min(r.width / 1920, r.height / 1080);
+  const left = (r.width - 1920 * scale) / 2, top = (r.height - 1080 * scale) / 2;
+  return { x: (e.clientX - r.left - left) / scale, y: (e.clientY - r.top - top) / scale };
+}
+function groupAt(p) {
+  for (const id of ['ov', 'cta', 'progress', 'wm', 'np', 'title', 'viz']) {
+    const g = hits[id];
+    if (g && p.x >= g.x - 10 && p.x <= g.r + 10 && p.y >= g.y - 10 && p.y <= g.b + 10) return id;
+  }
+  return null;
+}
+function bindDrag() {
+  const canvas = cv();
+  canvas.onpointermove = (e) => {
+    const p = stagePoint(e);
+    if (!drag) { hover = groupAt(p); canvas.style.cursor = hover ? 'move' : 'default'; return; }
+    let dx = p.x - drag.p.x, dy = p.y - drag.p.y;
+    const g = drag.box;
+    // keep inside the frame, snap to the horizontal center
+    dx = Math.max(-g.x, Math.min(1920 - g.r, dx)); dy = Math.max(-g.y, Math.min(1080 - g.b, dy));
+    const cx = (g.x + g.r) / 2 + dx;
+    drag.snap = drag.id !== 'viz' && Math.abs(cx - 960) < 16;
+    if (drag.snap) dx += 960 - cx;
+    const st = S.p.settings;
+    for (const [key, b] of Object.entries(drag.items)) {
+      if (key === 'visualizer') {
+        const v = st.visualizer;
+        if (RADIAL_STYLES.includes(v.preset)) v.center = { x: +((b.x + b.w / 2 + dx) / 1920).toFixed(4), y: +((b.y + b.h / 2 + dy) / 1080).toFixed(4) };
+        else v.bottom = Math.round(1080 - (b.y + b.h + dy));
+      } else if (key === 'overlay') { st.overlay.x = Math.round(b.x + dx); st.overlay.y = Math.round(b.y + dy); }
+      else { setK(st, key + '.x', String(Math.round(b.x + dx))); setK(st, key + '.y', String(Math.round(b.y + dy))); }
+    }
+  };
+  canvas.onpointerdown = (e) => {
+    const p = stagePoint(e), id = groupAt(p);
+    if (!id) return;
+    canvas.setPointerCapture(e.pointerId);
+    drag = { id, p, box: { ...hits[id] }, items: structuredClone(hits[id].items) };
+  };
+  canvas.onpointerup = () => { if (drag) { drag = null; syncControls(); save(); } };
+}
+
+function frame() {
+  requestAnimationFrame(frame);
+  const canvas = cv(); if (!canvas || !S.p) return;
+  const now = performance.now(), dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  const c = canvas.getContext('2d'), W = 1920, H = 1080, st = S.p.settings;
+  c.clearRect(0, 0, W, H);
+  hits = {};
+  if (!S.p.background) return;
+  if (st.backgroundDim > 0) { c.fillStyle = `rgba(0,0,0,${st.backgroundDim})`; c.fillRect(0, 0, W, H); }
+  const sh = st.bottomShade;
+  if (sh?.strength > 0) {
+    const top = H - sh.height, g = c.createLinearGradient(0, top, 0, H);
+    for (let i = 0; i <= 8; i++) g.addColorStop(i / 8, `rgba(0,0,0,${sh.strength * Math.pow(i / 8, 1.6)})`);
+    c.fillStyle = g; c.fillRect(0, top, W, sh.height);
+  }
+  if (st.loopTransition === 'fade-black' && st.loopFade > 0) {
+    const period = S.p.background.isImage ? Math.max(5, st.imageLoopSeconds || 15) : $('#bgVideo').duration;
+    if (Number.isFinite(period) && period > 0) {
+      const sourceTime = S.timeline != null ? S.timeline : S.p.background.isImage ? (now - projectOpenedAt) / 1000 : $('#bgVideo').currentTime;
+      const phase = ((sourceTime % period) + period) % period, fade = Math.min(st.loopFade, period / 3);
+      c.fillStyle = `rgba(0,0,0,${Math.max(0, 1 - Math.min(1, phase / fade, (period - phase) / fade))})`;
+      c.fillRect(0, 0, W, H);
+    }
+  }
+  if (st.backgroundAnim === 'fade' && S.timeline == null) {
+    const alpha = Math.max(0, 1 - (now - projectOpenedAt) / 1000);
+    if (alpha > 0) { c.fillStyle = `rgba(0,0,0,${alpha})`; c.fillRect(0, 0, W, H); }
+  }
+  const s = st.visualizer;
+  if (s.enabled !== false && DRAWN_STYLES.some(([id]) => id === s.preset)) {
+    const bands = RADIAL_STYLES.includes(s.preset) || s.mirror ? Math.max(4, Math.round(s.bars / 2)) : s.bars;
+    const lv = computeLevels(s, bands, dt);
+    const { sw, sh: hh, ring } = drawShape(s, lv);
+    const x = ring ? W * (s.center?.x ?? .5) - sw / 2 : (W - sw) / 2;
+    const y = ring ? H * (s.center?.y ?? .5) - hh / 2 : H - s.bottom - hh;
+    const fx = introFx(s.anim, s.animDuration, now), vx = x + fx.dx, vy = y + fx.dy;
+    if (s.glow > 0) { c.save(); c.filter = `blur(${s.glow}px)`; c.globalAlpha = s.opacity * s.glowStrength * fx.alpha; c.drawImage(mask, vx, vy); c.restore(); }
+    c.globalAlpha = s.opacity * fx.alpha; c.drawImage(mask, vx, vy); c.globalAlpha = 1;
+    if (ring && centerPhotoUrl && centerPhoto.complete && centerPhoto.naturalWidth) {
+      const d = Math.min(s.radius * 2 * Math.max(40, Math.min(900, Number(s.centerImageScale) || 90)) / 100, Math.hypot(W, H));
+      const cx = W * (s.center?.x ?? .5), cy = H * (s.center?.y ?? .5);
+      const iw = centerPhoto.naturalWidth, ih = centerPhoto.naturalHeight, scale = Math.max(d / iw, d / ih);
+      c.save(); c.globalAlpha = fx.alpha; c.translate(cx + fx.dx, cy + fx.dy); c.rotate((s.rotation || 0) * Math.PI / 180 * now / 1000);
+      c.beginPath(); c.arc(0, 0, d / 2, 0, Math.PI * 2); c.clip();
+      c.drawImage(centerPhoto, -iw * scale / 2, -ih * scale / 2, iw * scale, ih * scale);
+      c.restore();
+    }
+    // hit box = the visualizer's full area (not just the current bars)
+    addHit('viz', 'visualizer', { x: vx, y: vy, w: sw, h: hh });
+  }
+  const ov = st.overlay;
+  if (ov?.enabled && S.p.overlayUrl) {
+    if (ovImg.dataset.src !== S.p.overlayUrl) { ovImg.dataset.src = S.p.overlayUrl; ovImg.src = S.p.overlayUrl; }
+    if (ovImg.complete && ovImg.naturalWidth) {
+      const h = ov.width * ovImg.naturalHeight / ovImg.naturalWidth;
+      const fx = animFx(ov.anim === 'zoom' ? 'fade' : ov.anim, 90, 45);
+      c.save(); c.globalAlpha = fx.alpha; c.drawImage(ovImg, ov.x + fx.dx, ov.y + fx.dy, ov.width, h); c.restore();
+      addHit('ov', 'overlay', { x: ov.x, y: ov.y, w: ov.width, h });
+    }
+  }
+  const t = st.text || {};
+  // While "▶ ver" runs, the animated groups play their entrance/exit like in the video.
+  const animated = (o, fx) => ({ ...o, size: o.size * fx.scale, opacity: (o.opacity ?? 1) * fx.alpha });
+  if (t.watermark?.enabled) {
+    const fx = introFx(t.watermark.anim, 1, now);
+    c.save(); c.translate(fx.dx, fx.dy);
+    addHit('wm', 'text.watermark', drawText(c, t.watermark.text, { ...t.watermark, opacity: (t.watermark.opacity ?? 1) * fx.alpha }));
+    c.restore();
+  }
+  if (t.title?.enabled) {
+    const fx = animFx(t.title.anim, 70, 36);
+    c.save(); c.translate(fx.dx, fx.dy);
+    addHit('title', 'text.title', drawText(c, (t.title.text || '').replace('{title}', S.p.title), animated(t.title, fx)));
+    if (t.title.subtitle?.text) addHit('title', 'text.title.subtitle', drawText(c, t.title.subtitle.text, animated({ ...t.title, ...t.title.subtitle }, fx)));
+    c.restore();
+  }
+  if (t.nowPlaying?.enabled) {
+    const fx = animFx(t.nowPlaying.anim, 70, 36);
+    const currentTitle = S.timeline != null ? trackAtTime(S.timeline)?.track.title : nowTitle;
+    c.save(); c.translate(fx.dx, fx.dy);
+    addHit('np', 'text.nowPlaying', drawText(c, (t.nowPlaying.prefix || '') + (currentTitle || S.p.tracks[0]?.title || 'Nome da música'), animated(t.nowPlaying, fx)));
+    if (t.nowPlaying.label?.text) addHit('np', 'text.nowPlaying.label', drawText(c, t.nowPlaying.label.text, animated({ ...t.nowPlaying, ...t.nowPlaying.label }, fx)));
+    c.restore();
+  }
+  if (t.trackProgress?.enabled) {
+    const p = t.trackProgress;
+    const fx = introFx(p.anim, 1, now);
+    const player = $('#player');
+    const tr = S.p.tracks.find((x) => x.url === playing) || S.p.tracks[0];
+    const live = !!(tr && player && !player.paused && playing === tr.url);
+    const at = S.timeline != null ? trackAtTime(S.timeline) : null;
+    const fraction = at ? at.fraction : live ? Math.max(0, Math.min(1, player.currentTime / (tr.duration || 1))) : (now / 20000) % 1;
+    const name = at?.track.title || tr?.title || 'Nome da música';
+    const x = evalPos(p.x, { w: W, h: H }), y = evalPos(p.y, { w: W, h: H });
+    const barY = y + p.size + p.lineGap;
+    c.save(); c.translate(fx.dx, fx.dy);
+    drawText(c, name, { ...p, x: `(${p.x})+(${p.width}-text_w)/2`, opacity: (p.opacity ?? 1) * fx.alpha });
+    c.lineWidth = 3; c.strokeStyle = p.lineColor || p.color;
+    c.globalAlpha = (p.opacity ?? 1) * fx.alpha;
+    c.beginPath(); c.moveTo(x, barY); c.lineTo(x + p.width, barY); c.stroke();
+    c.fillStyle = p.dotColor || p.color;
+    const r = Math.max(5, p.size * .18);
+    if (p.dotShape === 'square') c.fillRect(x + p.width * fraction - r, barY - r, 2 * r, 2 * r);
+    else { c.beginPath(); c.arc(x + p.width * fraction, barY, r, 0, Math.PI * 2); c.fill(); }
+    c.restore();
+    addHit('progress', 'text.trackProgress', { x: x + fx.dx, y: y + fx.dy, w: p.width, h: p.size + p.lineGap + 12 });
+  }
+  const ctaVisible = S.timeline == null || !t.cta || S.timeline >= (t.cta.first || 0) &&
+    (t.cta.repeat !== false && t.cta.every > 0 ? ((S.timeline - (t.cta.first || 0)) % t.cta.every) < t.cta.duration : S.timeline < (t.cta.first || 0) + t.cta.duration);
+  if (t.cta?.enabled && t.cta.text && ctaVisible) {
+    const fx = animFx(t.cta.anim, 70, 36);
+    c.save(); c.translate(fx.dx, fx.dy);
+    addHit('cta', 'text.cta', drawText(c, t.cta.text, animated(t.cta, fx)));
+    c.restore();
+  }
+  if ($('#safeGuides')?.checked) {
+    c.save(); c.strokeStyle = 'rgba(240,200,138,.8)'; c.lineWidth = 2; c.setLineDash([12, 8]);
+    c.strokeRect(96, 54, 1728, 972);
+    c.beginPath(); c.moveTo(960, 54); c.lineTo(960, 1026); c.moveTo(96, 540); c.lineTo(1824, 540); c.stroke();
+    c.restore();
+  }
+  // outline of what is under the mouse / being dragged
+  const sel = drag?.id || hover;
+  if (sel && hits[sel]) {
+    const g = hits[sel];
+    c.save(); c.setLineDash([10, 8]); c.lineWidth = 2; c.strokeStyle = 'rgba(240,200,138,.95)';
+    c.strokeRect(g.x - 8, g.y - 8, g.r - g.x + 16, g.b - g.y + 16);
+    c.font = '600 22px Segoe UI'; c.fillStyle = 'rgba(240,200,138,.95)'; c.textBaseline = 'bottom';
+    c.fillText(GROUPS[sel].label + (drag ? '' : ' — arraste'), g.x - 8, g.y - 12);
+    if (drag?.snap) { c.beginPath(); c.moveTo(960, 0); c.lineTo(960, 1080); c.stroke(); }
+    c.restore();
+  }
+}
+const ovImg = new Image();
+
+// Same easing as the render: in for ~0.9 s, hold, out. Identity when not playing.
+let animStart = 0;
+function animFx(anim = 'fade', slide, rise) {
+  const id = { dx: 0, dy: 0, scale: 1, alpha: 1 };
+  const t = (performance.now() - animStart) / 1000;
+  if (!animStart || t > 4.6) return id;
+  const a = 0.4, b = 3.9, fd = anim === 'fade' ? 0.8 : 0.9;
+  if (t < a || t > b) return { ...id, alpha: 0 };
+  const cl = (v) => Math.max(0, Math.min(1, v)), e = (p) => p * p * (3 - 2 * p);
+  const pin = cl((t - a) / fd), pout = cl((b - t) / fd), off = 2 - e(pin) - e(pout);
+  if (anim === 'none') return id;
+  return {
+    dx: anim === 'slide-left' ? -slide * off : anim === 'slide-right' ? slide * off : 0,
+    dy: anim === 'rise' ? rise * off : 0,
+    scale: anim === 'zoom' ? 1 - 0.18 * off : 1,
+    alpha: Math.min(pin, pout),
+  };
+}
+requestAnimationFrame(frame);
+
+// ---------- channel intro: one frame with the current key settings ----------
+let introT = null;
+function introFrame() {
+  clearTimeout(introT);
+  introT = setTimeout(() => {
+    const img = $('#introFrame'), i = S.p?.settings.intro, info = S.p?.introInfo;
+    if (!img || !i || !info) return;
+    const q = new URLSearchParams({ color: i.color || '#00FF00', similarity: i.similarity ?? 0.3, blend: i.blend ?? 0.08, at: Number($('#introAt').value) / 100, v: info.v });
+    img.src = `/api/channels/${encodeURIComponent(S.p.channel)}/intro/frame?${q}`;
+  }, 250); // sliders fire continuously: one frame request after the user pauses
+}
+
+// ---------- playlist import (runs alongside renders) ----------
+function showPick(url, data) {
+  const box = $('#flowPick'), name = S.cur;
+  const lists = [...new Set(S.p.tracks.map((t) => t.playlist).filter(Boolean))];
+  box.innerHTML = `<div class="row" style="justify-content:space-between"><b></b><label class="switch" style="font-size:12.5px"><input type="checkbox" checked> todas</label></div>
+    <div class="list"></div>
+    <div class="col"><label>Colocar na playlist (escolha uma deste vídeo ou digite um nome novo)</label><input type="text" list="flowLists"><datalist id="flowLists"></datalist></div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="ghost small">Cancelar</button><button class="primary small"></button></div>`;
+  const list = $('.list', box), all = $('input[type=checkbox]', box), folder = $('input[type=text]', box), [cancel, go] = $$('.row button', box);
+  for (const l of lists) $('#flowLists', box).append(new Option(l));
+  folder.value = data.suggested;
+  for (const c of data.clips) {
+    const row = document.createElement('label'); row.className = 'song';
+    row.innerHTML = '<input type="checkbox" checked><span></span><small></small>';
+    row.children[1].textContent = c.title; row.children[2].textContent = fmt(c.duration); row.children[0].value = c.id;
+    list.append(row);
+  }
+  const picked = () => $$('.list input:checked', box).map((x) => x.value);
+  const sync = () => {
+    const ids = picked(), secs = data.clips.filter((c) => ids.includes(c.id)).reduce((a, c) => a + c.duration, 0);
+    $('b', box).textContent = `${data.clips.length} música(s) encontrada(s)`;
+    go.textContent = `Importar ${ids.length} (${fmt(secs)})`; go.disabled = !ids.length;
+    all.checked = ids.length === data.clips.length;
+  };
+  list.onchange = sync;
+  all.onchange = () => { $$('.list input', box).forEach((x) => (x.checked = all.checked)); sync(); };
+  cancel.onclick = () => box.classList.add('hidden');
+  go.onclick = async () => {
+    try {
+      const v = await api(`/api/projects/${name}/flow`, { method: 'POST', body: { url, ids: picked(), folder: folder.value } });
+      box.classList.add('hidden'); $('#fFlow').value = '';
+      applyImport(v);
+      if (v.import?.status === 'error') toast(`Erro na importação: ${v.import.error}`, true);
+    } catch (e) { toast(e.message, true); }
+  };
+  sync(); box.classList.remove('hidden');
+}
+let importPoll = null;
+// Takes only the import-related parts of a fresh project view: settings being edited stay untouched.
+function applyImport(v) {
+  if (!S.p || v.name !== S.p.name) return;
+  const was = S.p.import?.status, count = S.p.tracks.length;
+  Object.assign(S.p, { import: v.import, tracks: v.tracks, total: v.total, totalText: v.totalText, estimate: v.estimate });
+  if (S.p.tracks.length !== count) renderTracks();
+  renderImport(); updateReady(); showTab();
+  if (was === 'running' && v.import?.status !== 'running') {
+    refreshState();
+    const st = v.import?.status;
+    toast(st === 'done' ? 'Músicas importadas ✓' : st === 'canceled' ? 'Importação cancelada'
+      : st === 'error' ? `Erro na importação: ${v.import.error}` : 'A importação foi interrompida (o app foi fechado?). Importe a playlist de novo.', st !== 'done' && st !== 'canceled');
+  }
+}
+function renderImport() {
+  const box = $('#flowStatus'); if (!box) return;
+  const im = S.p.import, running = im?.status === 'running', name = S.cur;
+  clearTimeout(importPoll);
+  box.classList.toggle('hidden', !running);
+  $('#btnFlow').disabled = running;
+  if (!running) return;
+  $('#flowStage').textContent = im.stage;
+  $('#flowBar').classList.toggle('indet', im.pct == null);
+  $('#flowBar > div').style.width = (im.pct ?? 0) + '%';
+  importPoll = setTimeout(async () => {
+    if (S.cur !== name) return;
+    try { applyImport(await api('/api/projects/' + encodeURIComponent(name))); } catch { renderImport(); }
+  }, 1500);
+}
+
+// ---------- render jobs ----------
+function parseTime(s) { const p = String(s).split(':').map(Number); return p.reduce((a, x) => a * 60 + (x || 0), 0); }
+async function run(cmd) {
+  try {
+    await flush();
+    const body = { cmd };
+    if (cmd === 'preview' || cmd === 'compare') Object.assign(body, { start: parseTime($('#fPrevStart').value), length: 20 });
+    if (cmd === 'build' && S.p.output.video && !confirm('Já existe um vídeo pronto. Gerar de novo e substituir?')) return;
+    if (cmd === 'build') {
+      const r = await api('/api/queue', { method: 'POST', body: { project: S.cur } });
+      const i = r.queue.indexOf(S.cur);
+      if (i >= 0) {
+        const left = (r.runningLeft || 0) + r.estimates.slice(0, i + 1).reduce((a, b) => a + (b || 0), 0);
+        toast(`Adicionado à fila (posição ${i + 1})${r.estimates[i] != null ? ` — pronto por volta de ${clockAt(left)}` : ' — renderiza quando o atual terminar'}`);
+      }
+      return onJob(r.job, r);
+    }
+    onJob((await api(`/api/projects/${S.cur}/run`, { method: 'POST', body })).job);
+  } catch (e) { toast(e.message, true); }
+}
+let poll = null;
+function onJob(j, q) {
+  const prev = S.job; S.job = j;
+  if (q) { S.queue = q.queue; S.history = q.history; S.estimates = q.estimates || []; S.runningLeft = q.runningLeft; }
+  clearTimeout(poll);
+  if (j?.status === 'running' || S.queue?.length) poll = setTimeout(async () => { const r = await api('/api/job'); onJob(r.job, r); }, 1000);
+  renderQueue();
+  const mine = j && j.project === S.cur;
+  if ($('#prog')) {
+    const running = j?.status === 'running';
+    $('#prog').classList.toggle('hidden', !(mine && running));
+    if (mine && running) {
+      const names = { preview: 'Prévia', compare: 'Comparação A/B', build: 'Vídeo completo', overlay: 'Overlay', flow: 'Importando do Flow' };
+      $('#progStage').textContent = `${names[j.kind] || j.kind}: ${j.stage}${j.pct != null ? ` — ${j.pct.toFixed(0)}%` : ''}`;
+      $('#progEta').textContent = j.eta ? `falta ~${j.eta}` : `${fmt((Date.now() - j.startedAt) / 1000)}`;
+      $('#progBar').classList.toggle('indet', j.pct == null);
+      $('#progBar > div').style.width = (j.pct ?? 0) + '%';
+    }
+    $('#jobErr').classList.toggle('hidden', !(mine && j.status === 'error'));
+    if (mine && j.status === 'error') $('#jobErr').textContent = (j.error || 'erro').replace(/^(✖s*)+/gm, '').replace(/^/, '✖ ');
+    $('#logBox').classList.toggle('hidden', !mine);
+    if (mine) $('#logPre').textContent = j.log.join('\n');
+    for (const b of ['#btnPreview', '#btnOverlay', '#btnCompare']) $(b).disabled = running || !canPreview();
+    const queued = S.queue?.includes(S.cur) || (running && j.kind === 'build' && mine);
+    $('#btnBuild').disabled = !ready() || queued;
+    $('#btnBuild').textContent = queued ? 'Na fila ✓' : running ? 'Adicionar à fila' : 'Gerar vídeo completo';
+    if (!running) updateReady();
+    if (running && !mine) $('#readyHint').textContent = `Ocupado: renderizando outro projeto (${j.project}).`;
+  }
+  // finished → reload project to show the results
+  if (prev?.status === 'running' && j && j.status !== 'running' && j.id === prev.id) {
+    refreshState();
+    if (j.project === S.cur) api('/api/projects/' + S.cur).then((p) => {
+      S.p = p; renderProject(); showResult(j);
+      if (j.status === 'done') toast(j.kind === 'flow' ? 'Músicas importadas ✓' : j.kind === 'build' ? 'Vídeo pronto! 🎉' : 'Pronto ✓');
+    });
+  }
+}
+function renderQueue() {
+  const el = $('#qsec'); if (!el) return;
+  const j = S.job, running = j?.status === 'running';
+  const name = (p) => S.projects.find((x) => x.name === p)?.title || p;
+  const hist = (S.history || []).slice(0, 5);
+  el.classList.toggle('hidden', !running && !S.queue?.length && !hist.length);
+  el.innerHTML = '<div class="qh"><span>Renderizando</span></div>';
+  const item = (title, meta, onclick) => {
+    const d = document.createElement('div'); d.className = 'qitem';
+    d.innerHTML = '<span class="t"></span><span></span><span class="m"></span>';
+    d.children[0].textContent = title; d.children[2].textContent = meta;
+    if (onclick) d.children[0].onclick = onclick;
+    el.append(d); return d;
+  };
+  if (running) {
+    const d = item(name(j.project), `${j.stage}${j.pct != null ? ' · ' + j.pct.toFixed(0) + '%' : ''}${j.eta ? ' · falta ~' + j.eta : ''}`, () => openProject(j.project));
+    d.insertAdjacentHTML('beforeend', `<div class="qbar"><div style="width:${j.pct ?? 0}%"></div></div>`);
+  } else el.insertAdjacentHTML('beforeend', '<div class="muted">nada rodando agora</div>');
+  if (S.queue?.length) {
+    const ests = S.estimates || [];
+    const all = ests.length === S.queue.length && ests.every((e) => e != null);
+    const sum = (S.runningLeft || 0) + ests.reduce((a, b) => a + (b || 0), 0);
+    el.insertAdjacentHTML('beforeend', `<div class="qh" style="margin-top:8px"><span>Na fila (${S.queue.length})${all ? ` · tudo pronto ~${clockAt(sum)}` : ''}</span><button class="small ghost" id="qClear">limpar</button></div>`);
+    let t = S.runningLeft || 0;
+    $('#qClear').onclick = async () => onJob(S.job, { ...(await api('/api/queue/clear', { method: 'POST' })) });
+    S.queue.forEach((p, i) => {
+      const e = ests[i];
+      const d = item(`${i + 1}. ${name(p)}`, e != null ? `≈ ${fmtDur(e)} · pronto ~${clockAt((t += e))}` : 'esperando músicas / sem previsão', () => openProject(p));
+      d.children[1].innerHTML = (i ? '<button class="icon" title="subir">↑</button>' : '') + '<button class="icon" title="tirar da fila">✕</button>';
+      const [up, rm] = i ? d.children[1].children : [null, d.children[1].children[0]];
+      if (up) up.onclick = async () => onJob(S.job, await api(`/api/queue/${i}/up`, { method: 'POST' }));
+      rm.onclick = async () => onJob(S.job, await api(`/api/queue/${i}`, { method: 'DELETE' }));
+    });
+  }
+  if (hist.length) {
+    el.insertAdjacentHTML('beforeend', '<div class="qh" style="margin-top:8px"><span>Prontos</span></div>');
+    for (const h of hist) {
+      const ok = h.status === 'done';
+      const d = item((ok ? '✓ ' : h.status === 'canceled' ? '— ' : '✖ ') + name(h.project), ok ? `em ${fmt(h.took / 1000)}` : h.status === 'canceled' ? 'cancelado' : (h.error || 'erro').split('\n')[0].replace(/^✖\s*/, ''), () => openProject(h.project));
+      if (!ok && h.status !== 'canceled') d.children[2].style.color = 'var(--err)';
+    }
+  }
+}
+const importingNow = () => S.p?.import?.status === 'running';
+// A video can join the queue while its playlist is still downloading; previews need the songs.
+const ready = () => S.p && S.p.background && (S.p.tracks.length || importingNow());
+const canPreview = () => ready() && S.p.tracks.length && !importingNow();
+const fmtDur = (s) => { if (s < 60) return `${Math.max(1, Math.round(s))} s`; const m = Math.round(s / 60);
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`; };
+const clockAt = (sec) => {
+  const d = new Date(Date.now() + sec * 1000), o = { hour: '2-digit', minute: '2-digit' };
+  return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString('pt-BR', o) : d.toLocaleString('pt-BR', { weekday: 'short', ...o });
+};
+function updateReady() {
+  if (!$('#readyHint')) return;
+  const miss = [!S.p.background && 'um fundo', !S.p.tracks.length && !importingNow() && 'músicas'].filter(Boolean);
+  const state = S.p.renderState?.status, est = S.p.estimate;
+  $('#readyHint').textContent = miss.length ? `Falta: ${miss.join(' e ')}.` : `${S.p.tracks.length} músicas · ${S.p.totalText}` +
+    (importingNow() ? ' · importando músicas…' : est ? ` · render ≈ ${fmtDur(est.seconds)}${est.measured ? '' : ' (aproximado: gere uma prévia com este visual para ficar exato)'}` : '') +
+    (state === 'stale' ? ' · ⚠ vídeo pronto desatualizado' : state === 'unknown' ? ' · ⚠ render antigo não verificado' : '');
+  const p = est?.parts;
+  $('#readyHint').title = p ? `Volume das faixas ${fmtDur(p.analyze)} · mix ${fmtDur(p.mix)} · preparo do fundo ${fmtDur(p.prep)} · vídeo ${fmtDur(p.render)}` : '';
+  const running = S.job?.status === 'running';
+  for (const b of ['#btnPreview', '#btnOverlay']) $(b).disabled = running || !canPreview();
+  const queued = S.queue?.includes(S.cur) || (running && S.job.kind === 'build' && S.job.project === S.cur);
+  $('#btnBuild').disabled = !ready() || queued;
+  $('#btnBuild').textContent = queued ? 'Na fila ✓' : running ? 'Adicionar à fila' : 'Gerar vídeo completo';
+}
+
+// ---------- publish to YouTube ----------
+const PRIV = { private: 'Privado', unlisted: 'Não listado', public: 'Público', schedule: 'Agendar' };
+let pubPoll = null;
+function renderPublish() {
+  const el = $('#pubCard'); if (!el || !S.p) return;
+  el.className = 'card pub';
+  const p = S.p, y = p.yt || {}, chName = S.channels.find((c) => c.id === p.channel)?.name || p.channel;
+  const u = p.upload;
+  clearTimeout(pubPoll);
+  if (u?.status === 'running') pubPoll = setTimeout(async () => { if (S.cur === p.name) { S.p = await api('/api/projects/' + S.cur); renderPublish(); } }, 2000);
+
+  if (!y.configured) {
+    el.innerHTML = `<h3>Publicar no YouTube</h3>
+      <p class="hint" style="margin:0 0 6px">Configuração única (uns 10 min). Depois é só clicar em enviar.</p>
+      <ol>
+        <li>Abra o <a href="https://console.cloud.google.com/projectcreate" target="_blank">Google Cloud</a> e crie um projeto (ex.: "Music Studio").</li>
+        <li>Em <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">YouTube Data API v3</a>, clique em <b>Ativar</b>.</li>
+        <li>Em <a href="https://console.cloud.google.com/auth/overview" target="_blank">Google Auth Platform</a>: <b>Começar</b> → nome do app, seu e-mail → público <b>Externo</b>. Em <b>Público-alvo</b>, clique em <b>Publicar app</b> (senão o acesso expira a cada 7 dias).</li>
+        <li>Em <a href="https://console.cloud.google.com/auth/clients" target="_blank">Clientes</a> → <b>Criar cliente</b> → tipo <b>App para computador</b> → Criar → <b>Baixar JSON</b>.</li>
+        <li>Envie esse arquivo aqui: <button class="small" id="ytCred">Enviar arquivo de credenciais</button><input type="file" id="ytCredFile" accept=".json" class="hidden"></li>
+        <li>Peça a <a href="https://support.google.com/youtube/contact/yt_api_form" target="_blank">auditoria da API</a> (formulário grátis). Até aprovarem, o YouTube deixa todo vídeo enviado pela API como <b>privado</b>.</li>
+      </ol>`;
+    $('#ytCred').onclick = () => $('#ytCredFile').click();
+    $('#ytCredFile').onchange = async () => {
+      const file = $('#ytCredFile').files[0]; if (!file) return;
+      try { const r = await fetch('/api/youtube/credentials', { method: 'POST', body: file }); const j = await r.json(); if (!r.ok) throw new Error(j.error);
+        toast('Credenciais salvas ✓ — agora conecte o canal'); S.p = await api('/api/projects/' + S.cur); renderPublish(); }
+      catch (e) { toast(e.message, true); }
+    };
+    return;
+  }
+  if (!y.connected) {
+    el.innerHTML = `<h3>Publicar no YouTube</h3>
+      <p class="hint" style="margin:0 0 10px">Conecte o canal <b>${esc(chName)}</b> à conta do YouTube dele. Na tela do Google, escolha <b>o canal certo</b>. É feito uma vez por canal.</p>
+      <button class="primary" id="ytConnect">Conectar "${esc(chName)}" ao YouTube</button>`;
+    $('#ytConnect').onclick = () => {
+      window.open('/api/youtube/connect?channel=' + encodeURIComponent(p.channel), '_blank');
+      const started = Date.now();
+      const check = async () => {
+        const st = await api('/api/youtube/status?channel=' + encodeURIComponent(p.channel));
+        if (st.connected) { toast(`Conectado: ${st.ytChannel.title} ✓`); S.p = await api('/api/projects/' + S.cur); return renderPublish(); }
+        if (Date.now() - started < 5 * 60 * 1000 && S.p?.channel === p.channel) setTimeout(check, 2000);
+      };
+      setTimeout(check, 3000);
+    };
+    return;
+  }
+
+  const d = parseDesc(p.description || '');
+  S.pub = S.pub?.project === p.name ? S.pub : { project: p.name, title: d.title || p.title, desc: d.desc, tags: d.tags, privacy: 'private', when: '' };
+  const f = S.pub;
+  const yc = y.ytChannel || {};
+  el.innerHTML = `<h3>Publicar no YouTube</h3>
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <span class="ytch">${yc.thumb ? `<img src="${esc(yc.thumb)}" alt="">` : ''}<span>Vai para o canal <b>${esc(yc.title || '?')}</b></span></span>
+      <button class="small ghost" id="ytOff" title="desconectar este canal do YouTube">desconectar</button>
+    </div>
+    ${p.youtube ? `<p class="okc" style="margin:0 0 10px">✓ Já enviado em ${new Date(p.youtube.uploadedAt).toLocaleString('pt-BR')}: <a href="${esc(p.youtube.url)}" target="_blank">${esc(p.youtube.url)}</a> · <a href="${esc(p.youtube.studio)}" target="_blank">abrir no Studio</a></p>` : ''}
+    ${p.uploadSession && u?.status !== 'running' ? `<div class="card" style="margin-bottom:10px"><b>Envio interrompido</b><p class="hint">${gb(p.uploadSession.offset || 0)} de ${gb(p.uploadSession.size || 0)} enviados. É possível consultar o YouTube e continuar de onde parou.</p><div class="row"><button class="small primary" id="pResume">Retomar envio</button><button class="small ghost" id="pDiscard">Descartar sessão</button></div></div>` : ''}
+    ${!p.output.video ? '<p class="hint" style="margin:0">Gere o vídeo completo para poder enviar.</p>' : `
+    <div class="grid">
+      <div class="col"><label>Título <span id="tLen" class="muted"></span></label><input type="text" id="pTitle" maxlength="100"></div>
+      <div class="col"><label>Descrição (com os capítulos)</label><textarea id="pDesc" rows="7"></textarea></div>
+      <div class="col"><label>Tags (separadas por vírgula)</label><textarea id="pTags" rows="2" style="min-height:48px"></textarea></div>
+      <div class="thumb">
+        ${p.thumbnailUrl ? `<img src="${p.thumbnailUrl}" id="pThumb" title="clique para trocar" style="cursor:pointer">` : '<div class="ph" id="pThumb">Arraste a thumbnail aqui<br>(JPG ou PNG, 1280×720)</div>'}
+        <div class="col"><label>Visibilidade</label>
+          <select id="pPriv">${Object.entries(PRIV).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
+          <input type="datetime-local" id="pWhen" class="hidden" style="margin-top:6px">
+          <span class="hint" style="margin:4px 0 0">Categoria Música · não é conteúdo infantil</span>
+        </div>
+      </div>
+      <input type="file" id="pThumbFile" accept=".jpg,.jpeg,.png" class="hidden">
+      <div id="pubProg"></div>
+      <div class="row" style="justify-content:flex-end"><button class="primary" id="pSend">Enviar para o YouTube</button></div>
+    </div>`}`;
+  $('#ytOff').onclick = async () => {
+    if (!confirm(`Desconectar "${chName}" do YouTube? Para enviar de novo será preciso conectar outra vez.`)) return;
+    await api('/api/youtube/disconnect', { method: 'POST', body: { channel: p.channel } }); S.p = await api('/api/projects/' + S.cur); renderPublish();
+  };
+  if (p.uploadSession && u?.status !== 'running') {
+    $('#pResume').onclick = async () => {
+      try { S.p = await api(`/api/projects/${S.cur}/publish`, { method: 'POST', body: { resume: true, confirmWarnings: true } }); renderPublish(); }
+      catch (e) { toast(e.message, true); }
+    };
+    $('#pDiscard').onclick = async () => {
+      if (!confirm('Descartar esta sessão? O próximo envio começará do zero.')) return;
+      try { S.p = await api(`/api/projects/${S.cur}/publish/discard`, { method: 'POST' }); renderPublish(); }
+      catch (e) { toast(e.message, true); }
+    };
+  }
+  if (!p.output.video) return;
+  const T = $('#pTitle'), D = $('#pDesc'), G = $('#pTags'), P = $('#pPriv'), W = $('#pWhen');
+  T.value = f.title; D.value = f.desc; G.value = f.tags; P.value = f.privacy; W.value = f.when;
+  const sync = () => { Object.assign(f, { title: T.value, desc: D.value, tags: G.value, privacy: P.value, when: W.value });
+    W.classList.toggle('hidden', P.value !== 'schedule'); $('#tLen').textContent = `(${T.value.length}/100)`; };
+  [T, D, G, P, W].forEach((x) => x.addEventListener('input', sync)); sync();
+  const sendThumb = async (file) => {
+    if (!file) return;
+    try { const r = await fetch(`/api/projects/${S.cur}/thumbnail?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error); S.p = j; renderPublish(); toast('Thumbnail salva ✓'); }
+    catch (e) { toast(e.message, true); }
+  };
+  $('#pThumb').onclick = () => $('#pThumbFile').click();
+  $('#pThumbFile').onchange = () => sendThumb($('#pThumbFile').files[0]);
+  dropZone($('#pThumb'), (files) => sendThumb(files[0]));
+
+  const prog = $('#pubProg'), send = $('#pSend');
+  if (u?.status === 'running') {
+    send.disabled = true;
+    prog.innerHTML = `<div class="progress"><div class="bar"><div style="width:${u.pct.toFixed(1)}%"></div></div>
+      <div class="info"><span>${u.stage} — ${u.pct.toFixed(0)}% (${gb(u.sent)} de ${gb(u.size)})</span><button class="small" id="pCancel">Cancelar</button></div></div>`;
+    $('#pCancel').onclick = async () => { S.p = await api(`/api/projects/${S.cur}/publish/cancel`, { method: 'POST' }); renderPublish(); };
+  } else if (u?.status === 'done') {
+    prog.innerHTML = `<p class="okc" style="margin:0">✓ Enviado!${u.warning ? '' : ' Thumbnail aplicada.'}</p>${u.warning ? `<p class="err" style="margin:4px 0 0">Thumbnail: ${esc(u.warning)}</p>` : ''}
+      <p class="hint">O YouTube ainda vai processar o vídeo (HD/4K podem levar algum tempo). Se o projeto do Google Cloud ainda não passou na auditoria, o vídeo fica privado.</p>`;
+  } else if (u?.status === 'error') prog.innerHTML = `<p class="err">✖ ${esc(u.error)}</p>`;
+  else if (u?.status === 'canceled') prog.innerHTML = '<p class="hint">Envio cancelado.</p>';
+
+  send.onclick = async () => {
+    sync();
+    if (f.privacy === 'schedule' && !f.when) return toast('escolha a data e hora do agendamento', true);
+    const when = f.privacy === 'schedule' ? `agendado para ${new Date(f.when).toLocaleString('pt-BR')}` : PRIV[f.privacy].toLowerCase();
+    const again = p.youtube ? '\n\nAtenção: este vídeo já foi enviado antes — isso cria um vídeo novo no canal.' : '';
+    const nothumb = p.thumbnailUrl ? '' : '\n\nSem thumbnail (o YouTube escolhe um frame).';
+    try {
+      send.disabled = true; prog.textContent = 'Verificando vídeo, áudio e configurações…';
+      const payload = { title: f.title, description: f.desc, tags: f.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        privacy: f.privacy === 'schedule' ? 'private' : f.privacy, publishAt: f.privacy === 'schedule' ? new Date(f.when).toISOString() : null };
+      const check = await api(`/api/projects/${S.cur}/preflight`, { method: 'POST', body: payload });
+      if (!check.ok) { prog.textContent = '✖ ' + check.errors.join(' '); return; }
+      const report = `Verificação: ${check.info.resolution || '?'} · ${fmt(check.info.duration || 0)} · vídeo ${check.info.videoCodec || '?'} · áudio ${check.info.audioCodec || '?'}\n` +
+        (check.warnings.length ? '\nAtenção:\n' + check.warnings.map((x) => '• ' + x).join('\n') : '\nSem avisos.');
+      if (!confirm(`${report}\n\nEnviar "${f.title}" para "${yc.title}" como ${when}?${nothumb}${again}`)) return;
+      S.p = await api(`/api/projects/${S.cur}/publish`, { method: 'POST', body: {
+        ...payload, confirmWarnings: true } });
+      renderPublish();
+    } catch (e) { toast(e.message, true); }
+    finally { send.disabled = false; if (prog?.textContent?.startsWith('Verificando')) prog.textContent = ''; }
+  };
+}
+const esc = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+function showResult(j) {
+  const el = $('#result'); if (!el) return; el.innerHTML = '';
+  const o = S.p.output;
+  const kind = j?.status === 'done' ? j.kind : (o.video ? 'build' : o.preview ? 'preview' : null);
+  if (kind === 'preview' && o.preview) {
+    el.innerHTML = `<div class="copyrow"><b>Prévia</b><span class="muted">20 s, igual ao vídeo final</span></div><video controls autoplay src="${o.preview.url}?v=${o.preview.mtime}"></video>`;
+  }
+  if (kind === 'compare' && o.compareA && o.compareB) {
+    el.innerHTML = `<div class="copyrow"><b>Comparação A/B</b><span class="muted">mesmo trecho e mesmas músicas</span></div><div class="grid2"><div><b>A</b><video controls src="${o.compareA.url}?v=${o.compareA.mtime}"></video></div><div><b>B</b><video controls src="${o.compareB.url}?v=${o.compareB.mtime}"></video></div></div>`;
+  }
+  if (kind === 'overlay' && o.overlay) {
+    el.innerHTML = `<p class="okc">✓ visualizer_overlay.mp4 pronto (${gb(o.overlay.size)}). No CapCut, coloque acima do vídeo e use a mesclagem <b>Tela</b>.</p>`;
+    el.append(openBtn('Abrir pasta'));
+  }
+  if (kind === 'build' && o.video) {
+    const d = parseDesc(S.p.description || '');
+    el.innerHTML = `<p class="okc" style="margin:0 0 8px">✓ <b>video.mp4</b> pronto — ${S.p.totalText}, ${gb(o.video.size)}</p>`;
+    el.append(openBtn('Abrir pasta do vídeo'));
+    if (o.preview) { const b = document.createElement('button'); b.className = 'ghost small'; b.style.marginLeft = '6px'; b.textContent = 'ver última prévia'; b.onclick = () => showResult({ status: 'done', kind: 'preview' }); el.append(b); }
+    for (const [label, val, rows] of [['Título', d.title, 2], ['Descrição', d.desc, 9], ['Tags', d.tags, 3]]) {
+      if (!val) continue;
+      const box = document.createElement('div');
+      box.innerHTML = `<div class="copyrow"><b>${label}</b><button class="small">Copiar</button></div><textarea rows="${rows}" readonly></textarea>`;
+      $('textarea', box).value = val;
+      $('button', box).onclick = () => { navigator.clipboard.writeText(val); toast(`${label} copiado ✓`); };
+      el.append(box);
+    }
+  }
+}
+function openBtn(label) {
+  const b = document.createElement('button'); b.className = 'small'; b.textContent = label;
+  b.onclick = () => api(`/api/projects/${S.cur}/open`, { method: 'POST', body: { what: 'output' } });
+  return b;
+}
+function parseDesc(s) {
+  const title = s.match(/^TÍTULO: (.*)$/m)?.[1] || '';
+  let rest = s.replace(/^TÍTULO: .*\n+/, '');
+  const ti = rest.indexOf('\n---\nTAGS: ');
+  const tags = ti >= 0 ? rest.slice(ti + 11).trim() : '';
+  if (ti >= 0) rest = rest.slice(0, ti);
+  return { title, desc: rest.trim(), tags };
+}
+
+// ---------- boot ----------
+// Tells the app (window mode) that a window is still open, so it doesn't quit.
+setInterval(() => fetch('/api/version').catch(() => {}), 60 * 1000);
+refreshState().then(() => {
+  const last = localStorage.getItem('cur');
+  if (last && S.projects.some((p) => p.name === last)) openProject(last);
+  else if (S.projects[0]) openProject(S.projects[0].name);
+}).catch((e) => toast(e.message, true));
+</script>
+</body>
+</html>

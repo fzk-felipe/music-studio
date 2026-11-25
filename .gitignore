@@ -1,0 +1,22 @@
+projects/*/.work/
+projects/*/output/
+projects/*/tracks/
+node_modules/
+dist/
+# media stays out of the repo (large; copy separately when needed)
+projects/*/background.*
+projects/*/*.mp4
+projects/*/*.part
+projects/_*/
+projects/_studio-state/
+.claude/
+*.tmp.mp4
+*.log
+# YouTube credentials and per-channel logins never go to GitHub
+youtube/
+channels/*/youtube-token.json
+visuals/
+fonts/*.ttf
+fonts/*.otf
+projects/*/
+.agents/

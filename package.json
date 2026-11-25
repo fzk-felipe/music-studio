@@ -1,0 +1,15 @@
+{
+  "name": "msc-music-channels",
+  "private": true,
+  "type": "module",
+  "description": "Pipeline de vídeos longos de música (mix + loop + audio visualizer) para canais no YouTube",
+  "scripts": {
+    "build": "node src/cli.mjs build",
+    "preview": "node src/cli.mjs preview",
+    "verificar": "node src/cli.mjs verificar",
+    "empacotar": "node scripts/empacotar.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
